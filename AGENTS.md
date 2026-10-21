@@ -14,7 +14,7 @@ Read `docs/MAINTENANCE_HANDOFF.md` before changing this repository.
 - OpenWebUI DB defines which users exist in the dashboard.
 - The organization CSV enriches those DB users with division, team, position, and optional user ID.
 - A CSV-only person must not be added to user/leader usage results.
-- A DB user with no activity may appear with zero usage where the selected view requires a complete DB-user roster.
+- In v2, every DB user must remain in full user/leader lists and rankings even with zero usage in the selected period. Top 10 may show only the highest ten; full rankings must include zero-usage leaders.
 - Ambiguous duplicate-name matches must remain visible as a mapping problem rather than being guessed.
 
 ## Change discipline
