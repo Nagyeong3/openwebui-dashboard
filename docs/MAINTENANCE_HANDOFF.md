@@ -6,6 +6,8 @@ Last updated: 2026-10-20 (Asia/Seoul)
 
 2026-10-22 environment update: backend v2 now documents Miniconda 26.7.1 / Python 3.12 and same-platform conda-pack deployment. See backend_v2/README.md. Windows packaging/installation remains unverified; do not describe the generated-on-Windows environment ZIP as already built.
 
+2026-10-22 Windows test fix: user reported WinError 32 removing unrelated.sqlite3. Fixed two test-only raw sqlite3 connections with contextlib.closing; sqlite3 connection context management commits/rolls back but does not close. Added Pack-CurrentCondaEnvironment.ps1 to package an existing application environment without rebuilding. Linux tests pass; Windows confirmation pending.
+
 ## Why this file exists
 
 The latest implementation is on a closed-network development server and cannot be copied directly to this public repository. The current `main` branch is an early Streamlit scaffold. This document is a sanitized map of the later system, based on the development-server README, inspected screenshots, and fixes reported during maintenance.

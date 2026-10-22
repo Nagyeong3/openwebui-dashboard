@@ -55,6 +55,23 @@ python -m unittest discover -s backend_v2/tests -v
 
 `environment.yml`은 재구성 명세이지 오프라인 설치 파일이 아닙니다. 이 명령은 인터넷 또는 별도 패키지 저장소가 필요합니다.
 
+### 이미 oui-dashboard-v2 환경을 만든 경우
+
+환경을 다시 만들지 않고 활성화된 환경을 압축합니다. Miniconda Prompt에서:
+
+```bat
+cd /d C:\project\oui-dashboard
+git pull --ff-only origin feat/openwebui-api-backend
+conda activate oui-dashboard-v2
+python -m pip install -r backend_v2\requirements-test.txt -r backend_v2\requirements-pack.txt
+python -m unittest discover -s backend_v2\tests -v
+powershell -NoProfile -File backend_v2\scripts\Pack-CurrentCondaEnvironment.ps1
+```
+
+기본 출력은 `conda-bundle-v2-r1`입니다. 기존 출력이 있으면 새 `-OutputDirectory conda-bundle-v2-r2`를 지정합니다. 환경은 재생성하지 않습니다. 아래 설치 명령의 BundleDirectory도 실제 출력 폴더로 바꿉니다.
+
+Windows 테스트의 `unrelated.sqlite3` 삭제 오류(WinError 32)는 테스트가 `sqlite3.connect` 연결을 명시적으로 닫지 않아 발생했습니다. `contextlib.closing`으로 수정했으며, 테스트를 생략하거나 임시 파일 강제 삭제로 우회하지 않습니다. 앱 캐시의 연결 관리는 별도 context manager로 이미 명시적으로 닫습니다.
+
 ### 2. 폐쇄망 개발/운영 서버에 설치
 
 각 서버에서 EXE로 Miniconda를 설치합니다. 동일 버전이 이미 있다면 재설치할 필요 없습니다. 반입 폴더의 상위 폴더에서:

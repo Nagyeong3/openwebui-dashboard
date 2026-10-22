@@ -1,4 +1,5 @@
 import copy
+from contextlib import closing
 from datetime import datetime, timezone
 import io
 import json
@@ -258,11 +259,12 @@ class BackendTests(unittest.TestCase):
 
     def test_unknown_sqlite_is_not_migrated(self):
         path = self.root / "unrelated.sqlite3"
-        with sqlite3.connect(path) as db:
-            db.execute("CREATE TABLE unrelated(id INTEGER)")
+        with closing(sqlite3.connect(path)) as db:
+            with db:
+                db.execute("CREATE TABLE unrelated(id INTEGER)")
         with self.assertRaises(RuntimeError):
             Cache(path)
-        with sqlite3.connect(path) as db:
+        with closing(sqlite3.connect(path)) as db:
             self.assertEqual(
                 db.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
