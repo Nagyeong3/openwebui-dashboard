@@ -1,5 +1,7 @@
 # v2 API 어댑터 계약 (제안, 기존 운영 API와 동일하다는 의미 아님)
 
+**2026-10-22 변경:** 사용자 요청에 따라 데이터 원천을 OpenWebUI 0.12.3 공식 API로 전환했습니다. 아래 snapshot은 초기 React 데모 계약의 역사 기록입니다. 신규 사용자 조회는 `GET /api/dashboard/v2/users`이며 `backend_v2/README.md`가 현재 계약입니다. 기존 운영 API 응답을 다시 확보하는 작업은 필요하지 않습니다. React 연결은 후속 5단계입니다.
+
 기존 `/api/users/usage`, `/api/tokens/usage`의 현재 응답 원본을 확보하지 못했으므로 프런트엔드 내부 계약을 명시합니다. 기존 FastAPI 서비스는 유지하고, 실제 응답 확인 후 `frontend-v2/src/api.ts`에서 변환하거나 별도의 얇은 어댑터 endpoint를 추가합니다.
 
 ## GET /api/dashboard/v2/snapshot

@@ -1,5 +1,7 @@
 # OpenWebUI Analytics Dashboard
 
+2026-10-22: OpenWebUI 0.12.3 공식 API 수집·캐시·0건 포함 사용자 집계를 [`backend_v2/`](backend_v2/README.md)에 신규 구현했습니다. 실제 폐쇄망 호출 검증 전이며 React 데모에 연결하는 작업은 다음 단계입니다. [API 조사 기준](docs/OPENWEBUI_0123_API.md)을 참고하세요.
+
 새 React 대시보드는 [`frontend-v2/`](frontend-v2/README.md)에 있습니다. 라이트/다크, 개요·사용자/팀/팀장·토큰·운영 화면을 제공하며 현재 합성 데모 데이터로 실행됩니다. 실제 폐쇄망 API 연결은 [v2 API 계약](docs/DASHBOARD_V2_API_CONTRACT.md) 확인 후 진행합니다. 기존 Streamlit 원본은 아래에 보존합니다.
 
 OpenWebUI SQLite DB 복사본을 기준으로 사내 LLM 서비스 사용 현황을 분석하는 Streamlit 대시보드입니다.

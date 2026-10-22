@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-20 (Asia/Seoul)
 
+2026-10-22 new implementation: see `docs/OPENWEBUI_0123_API.md` and `backend_v2/README.md`. User approved an API-first redesign against OpenWebUI 0.12.3. The snapshot-based deployed system below is historical context, not the new v2 architecture. Collector/cache/zero-usage user analytics are newly implemented; closed-network integration and React wiring are still pending.
+
 ## Why this file exists
 
 The latest implementation is on a closed-network development server and cannot be copied directly to this public repository. The current `main` branch is an early Streamlit scaffold. This document is a sanitized map of the later system, based on the development-server README, inspected screenshots, and fixes reported during maintenance.

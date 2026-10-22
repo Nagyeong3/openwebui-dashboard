@@ -4,6 +4,8 @@ Read `docs/MAINTENANCE_HANDOFF.md` before changing this repository.
 
 ## Source-of-truth rules
 
+- New development on 2026-10-22: `backend_v2/` is the authoritative new API-backed implementation, not a reconstruction of the deployed legacy backend. Read `docs/OPENWEBUI_0123_API.md` and `backend_v2/README.md` before changes there. Do not ask for the old API contract to implement the official API collector.
+
 - The closed-network development server contains the latest deployed source. The public GitHub `main` branch is an older Streamlit scaffold and must not be treated as a byte-for-byte copy of production.
 - Do not reconstruct or overwrite deployed modules from screenshots. Ask for the smallest relevant function, traceback, response body, or sanitized diff.
 - Mark every statement as one of: confirmed in deployed README/code, reported as applied, proposed only, or unresolved.
@@ -11,7 +13,7 @@ Read `docs/MAINTENANCE_HANDOFF.md` before changing this repository.
 
 ## Product invariants
 
-- OpenWebUI DB defines which users exist in the dashboard.
+- OpenWebUI defines which users exist. New backend v2 uses its complete users API, without copying its DB file.
 - The organization CSV enriches those DB users with division, team, position, and optional user ID.
 - A CSV-only person must not be added to user/leader usage results.
 - In v2, every DB user must remain in full user/leader lists and rankings even with zero usage in the selected period. Top 10 may show only the highest ten; full rankings must include zero-usage leaders.
