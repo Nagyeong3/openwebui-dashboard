@@ -1,0 +1,8 @@
+name: oui-dashboard-v2
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+# conda 26.7.1 belongs to Miniconda base, not the application environment.
+# Install application requirements after creating this environment; see README.

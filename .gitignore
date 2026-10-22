@@ -19,3 +19,8 @@ data/*.sqlite3-shm
 data/*.sqlite-wal
 data/*.sqlite-shm
 wheelhouse-v2/
+
+# Conda deployment artifacts (never commit environments/installers)
+conda-bundle-v2*/
+*.exe
+oui-dashboard-v2-win64.zip

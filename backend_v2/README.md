@@ -19,36 +19,67 @@
 - 기간: Asia/Seoul 시작일 00:00 이상, 종료일 다음날 00:00 미만.
 - 토큰·비용·카테고리는 `not-connected`. 이 단계의 응답에서 가짜 0을 만들지 않습니다.
 
-## 설치 (인터넷 개발 PC)
+## Conda 26.7.1 설치 및 폐쇄망 배포 (Windows x64)
 
-저장소 루트에서 실행합니다. 기존 환경과 충돌하지 않게 전용 가상환경을 만듭니다.
+기본 환경 관리 방식을 Conda로 변경했습니다. Conda 26.7.1은 환경 관리자 버전이며 앱의 Python은 3.12입니다. 기존 venv는 삭제하지 않아도 됩니다. 코드/requirements는 동일합니다.
+
+공식 고정 설치 파일: [Miniconda3-py312_26.7.1-0-Windows-x86_64.exe](https://repo.anaconda.com/miniconda/Miniconda3-py312_26.7.1-0-Windows-x86_64.exe), 129,410,328 bytes.
+
+SHA256: `741c068509955d6fe0171613e3cdb76e12e74c87ed8236672197f01f227cd022`.
+
+설치 EXE는 인터넷 없이 Miniconda base를 설치할 수 있습니다. **EXE만으로 앱 의존성까지 설치되지는 않습니다.** 회사에서 승인한 채널/이용 조건을 적용합니다. 프로젝트 Git에는 바이너리를 넣지 않습니다.
+
+### 1. 인터넷 Windows PC에서 환경 만들기
+
+운영 서버와 같은 Windows x64 PC에서 진행합니다. Mac/Linux에서 만든 환경은 Windows로 옮길 수 없습니다. 공식 EXE를 실행해 Just Me, 기본 경로 `%USERPROFILE%\miniconda3`로 설치하고, Miniconda Prompt에서 `conda --version`이 `26.7.1`인지 확인합니다. 자동으로 최신 버전으로 업데이트하지 않습니다.
+
+저장소 루트에서 PowerShell:
 
 ```powershell
+Get-FileHash .\Miniconda3-py312_26.7.1-0-Windows-x86_64.exe -Algorithm SHA256
+.\backend_v2\scripts\Prepare-CondaBundle.ps1
+```
+
+설치 위치가 다르면 `-CondaExe "C:\tools\miniconda3\Scripts\conda.exe"`를 전달합니다. 스크립트는 conda 버전 확인 → Python 3.12 환경 생성 → 고정 의존성/conda-pack 0.9.2 설치 → 테스트 → ZIP 생성을 수행합니다. 기존 빌드 환경/출력 폴더는 덮어쓰지 않습니다. 재빌드 시 새 `-BuildPrefix`, `-OutputDirectory`를 지정합니다. 실행 정책이 막히면 사내 승인 절차를 적용합니다.
+
+출력 `conda-bundle-v2`에는 환경 ZIP, `backend_v2` 소스, 실제 Conda/pip 버전 목록, 체크섬이 들어갑니다. 이 폴더 전체와 Miniconda EXE를 개발/운영 서버로 반입합니다. 토큰/CSV/DB는 포함하지 않습니다.
+
+수동 개발 환경만 만들 때는:
+
+```powershell
+conda env create -f backend_v2/environment.yml
+conda activate oui-dashboard-v2
+python -m pip install -r backend_v2/requirements-test.txt -r backend_v2/requirements-pack.txt
+python -m unittest discover -s backend_v2/tests -v
+```
+
+`environment.yml`은 재구성 명세이지 오프라인 설치 파일이 아닙니다. 이 명령은 인터넷 또는 별도 패키지 저장소가 필요합니다.
+
+### 2. 폐쇄망 개발/운영 서버에 설치
+
+각 서버에서 EXE로 Miniconda를 설치합니다. 동일 버전이 이미 있다면 재설치할 필요 없습니다. 반입 폴더의 상위 폴더에서:
+
+```powershell
+.\conda-bundle-v2\backend_v2\scripts\Install-CondaBundle.ps1 -BundleDirectory .\conda-bundle-v2 -EnvironmentPrefix "$env:USERPROFILE\miniconda3\envs\oui-dashboard-v2"
+```
+
+이 과정은 네트워크 접속 없이 ZIP 해제 → `conda-unpack` 경로 보정 → 테스트를 수행합니다. 기존 환경을 덮어쓰지 않습니다. 업데이트 시 `oui-dashboard-v2-r2`처럼 새 경로에 설치 후 실행 경로를 전환합니다.
+
+Miniconda Prompt를 열어:
+
+```bat
+conda activate "%USERPROFILE%\miniconda3\envs\oui-dashboard-v2"
+cd /d C:\path-to\conda-bundle-v2
 python --version
-python -m venv .venv-backend-v2
-.\.venv-backend-v2\Scripts\python.exe -m pip install -r backend_v2\requirements-test.txt
-.\.venv-backend-v2\Scripts\python.exe -m unittest discover -s backend_v2\tests -v
+python -m pip check
+python -m unittest discover -s backend_v2\tests -v
 ```
 
-Linux에서는 실행 파일 경로만 `.venv-backend-v2/bin/python`으로 바꾸면 됩니다.
+이후 PowerShell에서도 환경을 활성화한 상태에서 아래 CLI/API 명령을 실행합니다. PowerShell 활성화를 설정하지 않았다면 Miniconda Prompt에서 `powershell -NoProfile`을 열면 환경 PATH를 상속합니다.
 
-## 폐쇄망 반입 준비
+**환경 폴더 자체는 단순 복사하지 않습니다.** 인터넷 PC에서 만든 원본 ZIP을 개발/운영 각각에 풀고 각각 `conda-unpack`합니다. 경로 보정 후 환경은 다시 이동하지 않습니다. 오프라인 개발 서버에서 의존성을 변경했다면 원본 ZIP에 자동 반영되지 않으므로 새 번들을 빌드해야 합니다. 소스만 변경했으면 소스만 별도 배포할 수 있습니다.
 
-운영 테스트 PC와 같은 Windows/Python 버전의 인터넷 PC에서:
-
-```powershell
-python -m pip download --only-binary=:all: -r backend_v2\requirements-test.txt -d wheelhouse-v2
-```
-
-반입 대상: `backend_v2` 폴더 전체와 `wheelhouse-v2` 폴더. `node_modules`나 OpenWebUI DB는 필요 없습니다. Python ABI가 다른 PC에서 받은 pydantic-core wheel은 재사용하지 마세요. 운영 설치만 할 때도 테스트 의존성을 함께 반입하면 폐쇄망에서 검증할 수 있습니다.
-
-폐쇄망 테스트 폴더 루트에서:
-
-```powershell
-python -m venv .venv-backend-v2
-.\.venv-backend-v2\Scripts\python.exe -m pip install --no-index --find-links .\wheelhouse-v2 -r .\backend_v2\requirements-test.txt
-.\.venv-backend-v2\Scripts\python.exe -m unittest discover -s backend_v2\tests -v
-```
+공식 근거: https://conda.github.io/conda-pack/ . Windows 실제 설치/이동은 아직 검증 전입니다. 여기서 제공하는 것은 검증한 공식 설치 EXE와 번들 생성/설치 스크립트이며, Windows용 완성 환경 ZIP은 같은 OS의 인터넷 PC에서 생성해야 합니다.
 
 ## 환경변수 설정 (PowerShell)
 
@@ -74,9 +105,9 @@ ID 우선 매핑, 이름은 양쪽에서 유일한 경우에만 매핑. 다른 �
 ## 최초 전체 수집
 
 ```powershell
-.\.venv-backend-v2\Scripts\python.exe -m backend_v2.cli init
-.\.venv-backend-v2\Scripts\python.exe -m backend_v2.cli sync --kind full
-.\.venv-backend-v2\Scripts\python.exe -m backend_v2.cli status
+python -m backend_v2.cli init
+python -m backend_v2.cli sync --kind full
+python -m backend_v2.cli status
 ```
 
 성공 기준: `ok: true`, `users`가 OpenWebUI 관리자 전체 사용자 수와 일치, status의 `ready: true`, 마지막 run의 `status: success`.
@@ -88,7 +119,7 @@ ID 우선 매핑, 이름은 양쪽에서 유일한 경우에만 매핑. 다른 �
 ## 조회 서버 실행
 
 ```powershell
-.\.venv-backend-v2\Scripts\python.exe -m uvicorn backend_v2.app:create_app --factory --host 127.0.0.1 --port 8011
+python -m uvicorn backend_v2.app:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
 기존 8010 백엔드는 그대로 두고 8011에서 검증합니다. 이 서버는 현재 브라우저 UI를 제공하지 않습니다.
@@ -119,7 +150,7 @@ $teams.detail.records
 ## 빠른 동기화와 정기 재대조
 
 ```powershell
-.\.venv-backend-v2\Scripts\python.exe -m backend_v2.cli sync --kind quick
+python -m backend_v2.cli sync --kind quick
 ```
 
 - 최초 quick은 full로 승격.
