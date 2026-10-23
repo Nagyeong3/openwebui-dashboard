@@ -1,3 +1,5 @@
+2026-10-23: API 모드는 신규 `/api/dashboard/v2/users` 계약에 연결되었습니다. 사용자/팀/팀장 서버 페이징, `/users/export` 전체 CSV 및 정적 화면 서빙은 `backend_v2/README.md`, 설치 절차는 `docs/PHASE5_OFFLINE.md`가 기준입니다. 아래 snapshot 계약은 데모/초기 설계 기록입니다.
+
 # v2 API 어댑터 계약 (제안, 기존 운영 API와 동일하다는 의미 아님)
 
 **2026-10-22 변경:** 사용자 요청에 따라 데이터 원천을 OpenWebUI 0.12.3 공식 API로 전환했습니다. 아래 snapshot은 초기 React 데모 계약의 역사 기록입니다. 신규 사용자 조회는 `GET /api/dashboard/v2/users`이며 `backend_v2/README.md`가 현재 계약입니다. 기존 운영 API 응답을 다시 확보하는 작업은 필요하지 않습니다. React 연결은 후속 5단계입니다.

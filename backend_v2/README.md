@@ -1,8 +1,8 @@
 # OpenWebUI API 기반 분석 백엔드 v2
 
-상태: **2026-10-22 신규 구현, 계획 1~4단계**. 실제 폐쇄망 서버 검증 전입니다. 기존 Streamlit/운영 FastAPI와 독립된 패키지입니다. Python 3.10 이상 대상, 현재 Python 3.12에서 검증했습니다.
+상태: **2026-10-23, 계획 1~5단계 구현**. 실제 폐쇄망 서버 검증 전입니다. 기존 Streamlit/운영 FastAPI와 독립된 패키지입니다. Python 3.10 이상 대상, 현재 Python 3.12에서 검증했습니다.
 
-이 단계는 API 수집·분석 캐시·CSV 매핑·사용자/팀/팀장 조회 API까지입니다. 기존 React 데모는 계속 합성 데이터를 표시합니다. 프런트엔드 연결, LiteLLM 수집, 질문 분류, 운영 화면의 실행 버튼은 다음 단계입니다.
+이 단계는 API 수집·분석 캐시·CSV 매핑·사용자/팀/팀장 조회 API까지입니다. React는 API 모드에서 이 백엔드 사용자 조회에 연결되며 기본 모드는 합성 데모입니다. LiteLLM 수집, 질문 분류, 운영 화면의 실행 버튼은 다음 단계입니다. 5단계 설치/검수는 `docs/PHASE5_OFFLINE.md`를 참고하세요.
 
 ## 데이터 원천과 확정 기준
 
@@ -96,7 +96,7 @@ python -m unittest discover -s backend_v2\tests -v
 
 **환경 폴더 자체는 단순 복사하지 않습니다.** 인터넷 PC에서 만든 원본 ZIP을 개발/운영 각각에 풀고 각각 `conda-unpack`합니다. 경로 보정 후 환경은 다시 이동하지 않습니다. 오프라인 개발 서버에서 의존성을 변경했다면 원본 ZIP에 자동 반영되지 않으므로 새 번들을 빌드해야 합니다. 소스만 변경했으면 소스만 별도 배포할 수 있습니다.
 
-공식 근거: https://conda.github.io/conda-pack/ . Windows 실제 설치/이동은 아직 검증 전입니다. 여기서 제공하는 것은 검증한 공식 설치 EXE와 번들 생성/설치 스크립트이며, Windows용 완성 환경 ZIP은 같은 OS의 인터넷 PC에서 생성해야 합니다.
+공식 근거: https://conda.github.io/conda-pack/ . 사용자는 2026-10-23 Windows 수동 환경 이전 및 테스트 완료를 보고했습니다. PowerShell 자동 스크립트는 실행 정책에 막혔으며 현장 자동 실행은 미검증입니다. Windows용 환경 ZIP은 같은 OS의 인터넷 PC에서 생성합니다.
 
 ## 환경변수 설정 (PowerShell)
 
@@ -197,10 +197,17 @@ python -m backend_v2.cli sync --kind quick
 
 ## 후속 단계
 
-로컬 검증: Python 3.12에서 합성 데이터 기반 자동 테스트 30개 통과, 의존성 검사 통과. 실제 OpenWebUI 서버와 Windows 실행은 아직 검증하지 않았습니다. GitHub Actions에는 Windows/Linux 및 Python 3.10/3.12 테스트 작업을 추가했습니다.
+로컬 검증: Python 3.12에서 합성 데이터 기반 자동 테스트 32개 통과, 의존성 검사 통과. 실제 OpenWebUI 서버와 Windows 실행은 아직 검증하지 않았습니다. GitHub Actions에는 Windows/Linux 및 Python 3.10/3.12 테스트 작업을 추가했습니다.
 
 1. 8011 API와 실제 OpenWebUI 사용자 수/질문 수 대조.
-2. React 사용자 분석을 이 API의 서버 페이징에 연결. 현재 snapshot-only decoder는 아직 변경하지 않았습니다.
+2. 연결된 React 사용자 분석의 필터/페이징/0건 팀장을 폐쇄망에서 검수. API 모드는 새 users 계약을 사용합니다.
 3. 개요/토큰 계약을 분리하고 LiteLLM 데이터 원천/미수집 상태 표현 연결.
 4. 실제 질문 분류기 연결(필요한 본문은 분류 시점에만 API로 읽고 캐시 정책 별도 결정).
 5. 운영 작업 실행/polling/자동 예약 연결.
+
+## 5단계 화면 연결 (2026-10-23)
+
+- `GET /api/dashboard/v2/users/export`: users와 같은 필터, 전체 CSV. page/pageSize는 적용하지 않으며 같은 대시보드 인증 적용.
+- `DASHBOARD_FRONTEND_DIR`에 API 모드로 빌드한 dist 경로를 지정하면 FastAPI가 같은 origin의 루트에서 화면을 제공합니다. `/api` 경로는 그대로 유지합니다.
+- 기존 Conda 환경의 의존성 변경은 없습니다. 새 backend_v2 소스와 frontend-v2/dist를 반입하면 됩니다.
+- 압축 스크립트의 잘못된 `python -m conda_pack` 호출을 `conda_pack.pack(...)` API 호출로 수정했습니다. PowerShell 정책으로 막히면 기존에 성공한 수동 conda-pack 절차를 사용합니다.

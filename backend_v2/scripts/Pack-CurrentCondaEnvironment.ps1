@@ -25,7 +25,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Install backend_v2/requirements-pack.txt in this environment first.' }
     New-Item -ItemType Directory -Path $output | Out-Null
     $archive = Join-Path $output 'oui-dashboard-v2-win64.zip'
-    & $python -m conda_pack --prefix $prefix --output $archive --format zip
+    & $python -c "import conda_pack,sys; conda_pack.pack(prefix=sys.argv[1], output=sys.argv[2], format='zip')" $prefix $archive
     if ($LASTEXITCODE -ne 0) { throw 'Environment packaging failed.' }
     Copy-Item -LiteralPath (Join-Path $root 'backend_v2') -Destination $output -Recurse
     Get-ChildItem (Join-Path $output 'backend_v2') -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force

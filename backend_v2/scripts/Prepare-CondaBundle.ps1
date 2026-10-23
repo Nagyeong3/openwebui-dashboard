@@ -29,7 +29,7 @@ try {
     & $CondaExe run --prefix $BuildPrefix python -m pip freeze | Set-Content -Encoding UTF8 (Join-Path $output 'pip-freeze.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Pip manifest export failed.' }
     $archive = Join-Path $output 'oui-dashboard-v2-win64.zip'
-    & $CondaExe run --no-capture-output --prefix $BuildPrefix python -m conda_pack --prefix $BuildPrefix --output $archive --format zip
+    & $CondaExe run --no-capture-output --prefix $BuildPrefix python -c "import conda_pack,sys; conda_pack.pack(prefix=sys.argv[1], output=sys.argv[2], format='zip')" $BuildPrefix $archive
     if ($LASTEXITCODE -ne 0) { throw 'Environment packaging failed.' }
     Copy-Item -LiteralPath (Join-Path $root 'backend_v2') -Destination $output -Recurse
     Get-ChildItem (Join-Path $output 'backend_v2') -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force

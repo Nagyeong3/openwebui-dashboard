@@ -1,3 +1,5 @@
+2026-10-23: React API 사용자 분석 연결 완료. 사용자/팀/팀장 서버 조회 및 FastAPI 정적 화면 서빙은 [5단계 폐쇄망 설치 절차](docs/PHASE5_OFFLINE.md)를 참고하세요. 기존 Conda 환경을 재사용합니다. 토큰/비용/운영 실행은 후속 단계입니다.
+
 # OpenWebUI Analytics Dashboard
 
 2026-10-22: OpenWebUI 0.12.3 공식 API 수집·캐시·0건 포함 사용자 집계를 [`backend_v2/`](backend_v2/README.md)에 신규 구현했습니다. 실제 폐쇄망 호출 검증 전이며 React 데모에 연결하는 작업은 다음 단계입니다. [API 조사 기준](docs/OPENWEBUI_0123_API.md)을 참고하세요.

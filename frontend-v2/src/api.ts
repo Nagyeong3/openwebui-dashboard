@@ -4,6 +4,7 @@ export const demo = import.meta.env?.VITE_DATA_MODE !== "api";
 const base = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
 export async function request(path: string, options: RequestInit = {}) {
   const response = await fetch(base + path, {
+    cache: "no-store",
     ...options,
     headers: { Accept: "application/json", ...options.headers },
   });
@@ -16,13 +17,20 @@ export async function request(path: string, options: RequestInit = {}) {
       `서버가 JSON 대신 다른 응답을 반환했습니다 (HTTP ${response.status}).`,
     );
   }
-  if (!response.ok || body.ok === false)
-    throw new Error(body.error || body.detail || `HTTP ${response.status}`);
+  if (!body || typeof body !== "object")
+    throw new Error("서버가 올바른 JSON 객체를 반환하지 않았습니다.");
+  if (!response.ok || body.ok === false) {
+    const reason = body.error || body.detail;
+    throw new Error(
+      typeof reason === "string"
+        ? reason
+        : `요청 오류 (HTTP ${response.status})`,
+    );
+  }
   return body;
 }
-// A deliberate boundary: deployed legacy API schemas are not yet available.
-// Implement this adapter endpoint in FastAPI, or replace this decoder after reviewing
-// the actual /api/users/usage and /api/tokens/usage responses. Never silently mock in api mode.
+// Historical snapshot demo contract. The API-mode entrypoint uses LiveApp/live-api
+// and the new /users contract; it never requests this snapshot adapter.
 export async function loadSnapshot(signal?: AbortSignal): Promise<Snapshot> {
   if (demo) {
     await new Promise((r) => setTimeout(r, 650));

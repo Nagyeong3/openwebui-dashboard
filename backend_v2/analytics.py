@@ -50,7 +50,8 @@ def user_usage(
     page=1,
     page_size=50,
     order="desc",
-    search=""
+    search="",
+    paginate=True,
 ):
     if view not in ("user", "team", "leader") or order not in ("asc", "desc"):
         raise ValueError("Invalid view or order")
@@ -225,7 +226,11 @@ def user_usage(
         "daily": [{"date": k, "questions": v} for k, v in sorted(daily.items())],
         "detail": {
             "view": view,
-            "records": records[(page - 1) * page_size : page * page_size],
+            "records": (
+                records[(page - 1) * page_size : page * page_size]
+                if paginate
+                else records
+            ),
             "total": len(records),
             "page": page,
             "pageSize": page_size,

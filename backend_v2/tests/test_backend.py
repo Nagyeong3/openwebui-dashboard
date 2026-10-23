@@ -383,6 +383,7 @@ class BackendTests(unittest.TestCase):
             ).status_code,
             422,
         )
+
         self.assertEqual(
             client.get(
                 "/api/dashboard/v2/users?range=invalid", headers=headers
@@ -401,6 +402,42 @@ class BackendTests(unittest.TestCase):
             ).status_code,
             422,
         )
+
+    def test_csv_export_is_full_authenticated_and_formula_safe(self):
+        import csv
+
+        self.client.people = [
+            {
+                "id": f"export-{i}",
+                "name": "=FORMULA" if i == 0 else f"Synthetic {i}",
+                "email": "",
+                "role": "user",
+            }
+            for i in range(1005)
+        ]
+        self.client.items = []
+        self.load()
+        client = TestClient(create_app(Settings(dashboard_token="test"), self.cache))
+        url = "/api/dashboard/v2/users/export?range=all&page=2&pageSize=10"
+        self.assertEqual(client.get(url).status_code, 401)
+        result = client.get(url, headers={"Authorization": "Bearer test"})
+        self.assertEqual(result.status_code, 200)
+        rows = list(csv.DictReader(io.StringIO(result.content.decode("utf-8-sig"))))
+        self.assertEqual(len(rows), 1005)
+        self.assertTrue(all(r["질문 수"] == "0" for r in rows))
+        self.assertIn("'=FORMULA", [r["사용자명"] for r in rows])
+        self.assertEqual(result.headers["cache-control"], "no-store")
+
+    def test_static_frontend_and_api_share_origin(self):
+        directory = self.root / "frontend"
+        directory.mkdir()
+        (directory / "index.html").write_text("<h1>synthetic UI</h1>")
+        with patch.dict("os.environ", {"DASHBOARD_FRONTEND_DIR": str(directory)}):
+            client = TestClient(create_app(self.settings, self.cache))
+            self.assertEqual(client.get("/").status_code, 200)
+            self.assertIn("synthetic UI", client.get("/").text)
+            self.assertEqual(client.get("/api/dashboard/v2/health").status_code, 200)
+            self.assertEqual(client.get("/api/dashboard/v2/users").status_code, 503)
 
 
 class Opener:

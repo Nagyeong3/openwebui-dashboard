@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 4173",
     "build": "tsc -b && vite build",
-    "test": "node --import tsx --test src/domain.test.ts"
+    "build:api": "tsc -b && vite build --mode api",
+    "dev:api": "vite --mode api --host 127.0.0.1 --port 4173",
+    "test": "node --import tsx --test src/domain.test.ts src/live-api.test.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans-kr": "^5.2.0",

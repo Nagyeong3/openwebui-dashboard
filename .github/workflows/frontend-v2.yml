@@ -20,7 +20,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm run build:api
       - uses: actions/upload-artifact@v4
         with:
-          name: dashboard-v2-static
+          name: dashboard-v2-api-static
           path: frontend-v2/dist

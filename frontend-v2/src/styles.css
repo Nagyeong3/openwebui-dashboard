@@ -17,6 +17,27 @@
   --hover: #f6f6fc;
   color-scheme: light;
 }
+.live-main { padding-bottom: 32px; }
+.live-filters { display: flex; align-items: stretch; flex-wrap: wrap; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin: 24px 0 10px; }
+.live-filters > label, .live-custom label, .live-auth { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+.live-filters > .select-wrap { min-width: 150px; flex: 1; }
+.live-filters select, .live-custom input, .live-pagination select, .live-auth input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+.live-custom { display: flex; gap: 12px; align-items: end; margin: 12px 0; flex-wrap: wrap; }
+.live-note { font-size: 12px; line-height: 1.8; color: var(--muted); }
+.live-app .live-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 22px 0; }
+.live-charts { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; margin-bottom: 20px; }
+.live-loading { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 350px; color: var(--muted); }
+.live-warning { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid #c8923b; border-radius: 10px; color: var(--text); background: #c8923b13; margin: 18px 0; }
+.live-person { background: none; border: 0; color: var(--accent); text-align: left; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.live-pagination { display: flex; gap: 8px; align-items: center; }
+.live-pagination label { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.live-unconnected { padding: 18px 0; }
+.live-auth { margin: 20px 0; }
+.live-app .table-toolbar { flex-wrap: wrap; gap: 12px; }
+.live-app .table-controls { flex-wrap: wrap; }
+.live-app .eyebrow { font-size: 11px; letter-spacing: .12em; color: var(--accent); }
+@media (max-width: 1050px) { .live-app .live-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-charts { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .live-app .live-metrics { grid-template-columns: 1fr; } .live-filters > .select-wrap { min-width: 120px; } .live-app .table-footer { flex-direction: column; align-items: start; gap: 12px; } }
 :root[data-theme="dark"] {
   --bg: #151827;
   --surface: #1e2234;
