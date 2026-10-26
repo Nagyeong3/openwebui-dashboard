@@ -2,6 +2,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import os
 from urllib.parse import urlsplit
+from starlette.config import Config
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+class UTF8Config(Config):
+    """Starlette's key=value format, decoded consistently on Windows and Linux."""
+
+    def _read_file(self, file_name):
+        values = {}
+        for line in Path(file_name).read_text(encoding="utf-8-sig").splitlines():
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                key, value = line.split("=", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+        return values
 
 
 @dataclass(frozen=True)
@@ -16,6 +33,8 @@ class Settings:
     max_pages_per_user: int = 10000
     overlap_days: int = 7
     dashboard_token: str = field(default="", repr=False)
+    frontend_dir: Path | None = None
+    cors_origins: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.base_url:
@@ -39,22 +58,39 @@ class Settings:
             raise ValueError("Overlap days and maximum pages must be positive")
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls, env_file=None):
+        # Stable project-root location; CLI and Uvicorn use the same file.
+        path = (
+            Path(env_file).resolve() if env_file is not None else PROJECT_ROOT / ".env"
+        )
+        if env_file is not None and not path.is_file():
+            raise ValueError("Specified .env file does not exist")
+        config = UTF8Config(path if path.is_file() else None, environ=os.environ)
+
+        def local_path(key, default=""):
+            value = config(key, default=default)
+            if not value:
+                return None
+            result = Path(value)
+            return result if result.is_absolute() else path.parent / result
+
         return cls(
-            base_url=os.getenv("OPENWEBUI_URL", "").rstrip("/"),
-            api_token=os.getenv("OPENWEBUI_API_TOKEN", ""),
-            cache_path=Path(
-                os.getenv("DASHBOARD_CACHE_PATH", "data/dashboard-v2.sqlite3")
+            base_url=config("OPENWEBUI_URL", default="").rstrip("/"),
+            api_token=config("OPENWEBUI_API_TOKEN", default=""),
+            cache_path=local_path("DASHBOARD_CACHE_PATH", "data/dashboard-v2.sqlite3"),
+            org_csv=local_path("ORG_USER_CSV_PATH"),
+            timeout=config("OPENWEBUI_TIMEOUT_SECONDS", cast=int, default=30),
+            retries=config("OPENWEBUI_MAX_RETRIES", cast=int, default=2),
+            page_size=config("OPENWEBUI_PAGE_SIZE", cast=int, default=100),
+            max_pages_per_user=config(
+                "OPENWEBUI_MAX_PAGES_PER_USER", cast=int, default=10000
             ),
-            org_csv=(
-                Path(os.environ["ORG_USER_CSV_PATH"])
-                if os.getenv("ORG_USER_CSV_PATH")
-                else None
+            overlap_days=config("SYNC_OVERLAP_DAYS", cast=int, default=7),
+            dashboard_token=config("DASHBOARD_API_TOKEN", default=""),
+            frontend_dir=local_path("DASHBOARD_FRONTEND_DIR"),
+            cors_origins=tuple(
+                s.strip()
+                for s in config("DASHBOARD_CORS_ORIGINS", default="").split(",")
+                if s.strip()
             ),
-            timeout=int(os.getenv("OPENWEBUI_TIMEOUT_SECONDS", "30")),
-            retries=int(os.getenv("OPENWEBUI_MAX_RETRIES", "2")),
-            page_size=int(os.getenv("OPENWEBUI_PAGE_SIZE", "100")),
-            max_pages_per_user=int(os.getenv("OPENWEBUI_MAX_PAGES_PER_USER", "10000")),
-            overlap_days=int(os.getenv("SYNC_OVERLAP_DAYS", "7")),
-            dashboard_token=os.getenv("DASHBOARD_API_TOKEN", ""),
         )

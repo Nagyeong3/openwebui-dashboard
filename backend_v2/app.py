@@ -1,5 +1,4 @@
 import hmac
-import os
 import csv
 import io
 import re
@@ -19,11 +18,7 @@ def create_app(settings=None, cache=None):
     settings = settings or Settings.from_env()
     cache = cache or Cache(settings.cache_path)
     app = FastAPI(title="OpenWebUI Analytics Backend v2", version="0.2.0")
-    origins = [
-        s.strip()
-        for s in os.getenv("DASHBOARD_CORS_ORIGINS", "").split(",")
-        if s.strip()
-    ]
+    origins = list(settings.cors_origins)
     if origins:
         app.add_middleware(
             CORSMiddleware,
@@ -175,7 +170,7 @@ def create_app(settings=None, cache=None):
         )
 
     # Optional same-origin static hosting: no Node runtime, proxy or CORS required.
-    frontend = os.getenv("DASHBOARD_FRONTEND_DIR", "")
+    frontend = settings.frontend_dir
     if frontend:
         directory = Path(frontend).resolve()
         if not (directory / "index.html").is_file():

@@ -1,5 +1,6 @@
 import copy
 from contextlib import closing
+from dataclasses import replace
 from datetime import datetime, timezone
 import io
 import json
@@ -432,12 +433,66 @@ class BackendTests(unittest.TestCase):
         directory = self.root / "frontend"
         directory.mkdir()
         (directory / "index.html").write_text("<h1>synthetic UI</h1>")
-        with patch.dict("os.environ", {"DASHBOARD_FRONTEND_DIR": str(directory)}):
-            client = TestClient(create_app(self.settings, self.cache))
-            self.assertEqual(client.get("/").status_code, 200)
-            self.assertIn("synthetic UI", client.get("/").text)
+        client = TestClient(
+            create_app(replace(self.settings, frontend_dir=directory), self.cache)
+        )
+        self.assertEqual(client.get("/").status_code, 200)
+        self.assertIn("synthetic UI", client.get("/").text)
+        self.assertEqual(client.get("/api/dashboard/v2/health").status_code, 200)
+        self.assertEqual(client.get("/api/dashboard/v2/users").status_code, 503)
+
+    def test_env_file_utf8_paths_and_process_precedence(self):
+        env = self.root / ".env"
+        env.write_text(
+            '# 한글 주석\nOPENWEBUI_URL=http://example.invalid/\nOPENWEBUI_API_TOKEN="synthetic#key=123"\nDASHBOARD_CACHE_PATH=data/cache.sqlite3\nORG_USER_CSV_PATH=data/조직.csv\nDASHBOARD_FRONTEND_DIR=frontend_v2/dist\nDASHBOARD_CORS_ORIGINS=http://localhost:4173\n',
+            encoding="utf-8-sig",
+        )
+        with patch.dict("os.environ", {}, clear=True):
+            settings = Settings.from_env(env)
+            self.assertEqual(settings.api_token, "synthetic#key=123")
+            self.assertEqual(settings.base_url, "http://example.invalid")
+            self.assertEqual(settings.cache_path, self.root / "data/cache.sqlite3")
+            self.assertEqual(settings.org_csv, self.root / "data/조직.csv")
+            self.assertEqual(settings.frontend_dir, self.root / "frontend_v2/dist")
+            self.assertEqual(settings.cors_origins, ("http://localhost:4173",))
+            self.assertNotIn("synthetic#key", repr(settings))
+            self.assertNotIn("OPENWEBUI_API_TOKEN", __import__("os").environ)
+            with patch.dict("os.environ", {"OPENWEBUI_API_TOKEN": "process-value"}):
+                self.assertEqual(Settings.from_env(env).api_token, "process-value")
+
+    def test_default_env_location_static_and_cli(self):
+        env = self.root / ".env"
+        directory = self.root / "ui"
+        directory.mkdir()
+        (directory / "index.html").write_text("synthetic static page")
+        env.write_text(
+            "DASHBOARD_FRONTEND_DIR=ui\nDASHBOARD_CACHE_PATH=data/env-cache.sqlite3\n",
+            encoding="utf-8",
+        )
+        with patch.dict("os.environ", {}, clear=True), patch(
+            "backend_v2.settings.PROJECT_ROOT", self.root
+        ):
+            client = TestClient(create_app())
+            self.assertEqual(client.get("/").text, "synthetic static page")
             self.assertEqual(client.get("/api/dashboard/v2/health").status_code, 200)
-            self.assertEqual(client.get("/api/dashboard/v2/users").status_code, 503)
+            from backend_v2.cli import main
+
+            with patch("sys.argv", ["cli", "init"]), patch(
+                "sys.stdout", new_callable=io.StringIO
+            ) as output:
+                self.assertEqual(main(), 0)
+                self.assertFalse(json.loads(output.getvalue())["ready"])
+            self.assertTrue((self.root / "data/env-cache.sqlite3").is_file())
+
+    def test_no_env_file_uses_defaults_and_explicit_missing_file_errors(self):
+        with patch.dict("os.environ", {}, clear=True), patch(
+            "backend_v2.settings.PROJECT_ROOT", self.root
+        ):
+            self.assertEqual(
+                Settings.from_env().cache_path, self.root / "data/dashboard-v2.sqlite3"
+            )
+            with self.assertRaises(ValueError):
+                Settings.from_env(self.root / "absent.env")
 
 
 class Opener:

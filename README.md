@@ -1,3 +1,5 @@
+2026-10-26: .env 자동 로드 지원을 추가했습니다. 설정 방법은 [ENV_SETUP.md](docs/ENV_SETUP.md)를 참고하세요. 추가 Python 패키지는 필요 없습니다.
+
 2026-10-23: React API 사용자 분석 연결 완료. 사용자/팀/팀장 서버 조회 및 FastAPI 정적 화면 서빙은 [5단계 폐쇄망 설치 절차](docs/PHASE5_OFFLINE.md)를 참고하세요. 기존 Conda 환경을 재사용합니다. 토큰/비용/운영 실행은 후속 단계입니다.
 
 # OpenWebUI Analytics Dashboard
