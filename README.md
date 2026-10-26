@@ -55,3 +55,5 @@ src/utils/              # 날짜/표시 포맷 유틸
 - OpenWebUI JSON 파싱과 지표 계산은 `src/services`에 둡니다.
 - 공통 카드, 차트, 테이블은 `src/ui`에 둡니다.
 - 복잡한 SQL, JSON 구조, 집계 기준에는 짧은 주석을 남깁니다.
+
+API 최초 full 수집, 이후 quick 업데이트, LiteLLM과의 관계 및 향후 운영 화면 구현 기준은 [동기화 사용법](docs/SYNC_USAGE.md)을 참고하세요.

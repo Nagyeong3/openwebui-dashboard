@@ -213,3 +213,5 @@ python -m backend_v2.cli sync --kind quick
 - `DASHBOARD_FRONTEND_DIR`에 API 모드로 빌드한 dist 경로를 지정하면 FastAPI가 같은 origin의 루트에서 화면을 제공합니다. `/api` 경로는 그대로 유지합니다.
 - 기존 Conda 환경의 의존성 변경은 없습니다. 새 backend_v2 소스와 frontend-v2/dist를 반입하면 됩니다.
 - 압축 스크립트의 잘못된 `python -m conda_pack` 호출을 `conda_pack.pack(...)` API 호출로 수정했습니다. PowerShell 정책으로 막히면 기존에 성공한 수동 conda-pack 절차를 사용합니다.
+
+API 최초 full 수집, 이후 quick 업데이트, LiteLLM과의 관계 및 향후 운영 화면 구현 기준은 [동기화 사용법](../docs/SYNC_USAGE.md)을 참고하세요.

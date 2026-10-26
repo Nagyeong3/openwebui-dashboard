@@ -190,3 +190,7 @@ Recommended validation cases:
 - upstream LiteLLM validation error body
 - snapshot integrity failure and rollback
 
+
+## 2026-10-26 API 동기화 운영 요구사항
+
+사용자는 최초 full 수집 이후 일반 업데이트에 quick을 사용하도록 요청했습니다. 향후 업데이트 현황 페이지는 동일 Synchronizer의 quick 경로를 비동기로 실행하고, full 재대조는 별도로 제공합니다. 현재 수집은 OpenWebUI API 직접 조회로 LiteLLM 추론 요청과 무관합니다. 실서버 수집 성공은 아직 확인되지 않았습니다. 명령과 제한 사항은 [SYNC_USAGE.md](SYNC_USAGE.md)를 참고하세요.

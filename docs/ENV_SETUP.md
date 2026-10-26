@@ -56,3 +56,5 @@ python -m uvicorn backend_v2.app:create_app --factory --host 127.0.0.1 --port 80
 실제 .env는 Git에서 제외됩니다. 관리자 키는 백엔드 전용이며 VITE 변수나 프런트엔드 폴더에 넣지 않습니다. .env는 평문 파일이므로 서버 계정의 파일 접근 권한으로 관리합니다. .env와 실제 CSV/DB는 반입 패키지나 공개 저장소에 포함하지 않습니다.
 
 검증: 기존 32개에 .env 우선순위·UTF-8/BOM·경로·CLI/정적 서빙 통합 테스트 3개를 추가했습니다. 실제 폐쇄망 OpenWebUI 권한은 별도 검증입니다.
+
+API 최초 full 수집, 이후 quick 업데이트, LiteLLM과의 관계 및 향후 운영 화면 구현 기준은 [동기화 사용법](SYNC_USAGE.md)을 참고하세요.
