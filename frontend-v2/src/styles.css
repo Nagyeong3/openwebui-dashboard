@@ -2475,3 +2475,27 @@ tbody tr:last-child td {
 @media(prefers-reduced-motion:reduce) { .overview-toggle-thumb {transition:none;} }
 
 .status-dot.neutral { background:var(--muted); box-shadow:none; }
+
+.leader-first-panel { margin:20px 0; }
+.leader-full-chart { max-height:480px; overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable; border-radius:8px; }
+.live-charts.leader-trend-only { grid-template-columns:1fr; }
+.live-heading-actions { display:flex; gap:10px; align-items:center; }
+.period-select { border:1px solid var(--border); background:var(--surface); border-radius:9px; padding:10px 12px; color:var(--text); font:inherit; font-size:12px; }
+@media(max-width:600px) { .live-heading-actions {flex-wrap:wrap;} }
+.period-picker { position:relative; }
+.period-trigger { min-width:148px; justify-content:space-between; }
+.period-menu,.period-popover { position:absolute; top:calc(100% + 9px); right:0; z-index:50; border:1px solid var(--border); border-radius:14px; background:var(--surface); box-shadow:0 12px 36px #15182720; }
+.period-menu { min-width:180px; padding:6px; }
+.period-menu button { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; border:0; border-radius:8px; background:none; color:var(--text); font:inherit; font-size:13px; text-align:left; padding:11px 12px; }
+.period-menu button:hover,.period-menu button:focus-visible { background:var(--hover); }
+.period-menu button[aria-checked="true"] { color:var(--accent); background:var(--accent-soft); }
+.period-popover { width:360px; max-width:calc(100vw - 36px); padding:22px; }
+.period-popover h2 { font-size:17px; line-height:1.5; margin:0 0 6px; }
+.period-popover > p { font-size:12px; color:var(--muted); line-height:1.7; margin:0 0 18px; }
+.period-popover fieldset { margin:0 0 10px; padding:5px 12px 9px; border:1px solid var(--border); border-radius:11px; }
+.period-popover legend { padding:0 5px; font-size:11px; color:var(--muted); }
+.period-popover input { width:100%; min-width:0; padding:3px 0; border:0; color:var(--text); background:none; font:inherit; font-size:14px; }
+.period-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:24px; }
+.period-cancel { color:var(--accent); border-color:transparent; background:none; }
+.period-popover .period-error { color:#b96554; margin:6px 0; }
+@media(max-width:600px) { .period-popover { right:auto; left:0; } }

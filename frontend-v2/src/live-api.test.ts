@@ -14,10 +14,21 @@ import {
   queryParams,
   readQuery,
   validateUsers,
+  validateLeaderRanking,
 } from "./live-api";
 
 function fixture() {
   return {
+    leaderRanking: [
+      {
+        id: "synthetic",
+        name: "Synthetic",
+        team: "T",
+        position: "팀장",
+        questions: 0,
+        rank: 1,
+      },
+    ],
     schemaVersion: 1,
     source: "openwebui-api-cache",
     updatedAt: "2026-10-22T00:00:00Z",
@@ -45,7 +56,7 @@ function fixture() {
     },
     daily: [],
     detail: {
-      view: "leader",
+      view: "leader" as const,
       page: 1,
       pageSize: 50,
       total: 1,
@@ -215,7 +226,7 @@ test("overview transport uses only period, auth and cancellation", async () => {
     controller = new AbortController();
   try {
     globalThis.fetch = async (url, options) => {
-      assert.equal(String(url), "/api/dashboard/v2/overview?range=30d");
+      assert.equal(String(url), "/api/dashboard/v2/overview?range=7d");
       assert.equal(options?.signal, controller.signal);
       assert.equal(
         (options?.headers as Record<string, string>).Authorization,
@@ -243,4 +254,33 @@ test("overview CSV includes daily and leaders, null is blank and formulas are es
   assert.ok(csv.includes('"추정 비용"') === false);
   assert.ok(csv.includes('"연동 준비 중"'));
   assert.ok(!csv.includes('"null"'));
+});
+
+test("leader chart receives full population independently of table pagination", () => {
+  const p = fixture();
+  p.detail.total = 13;
+  p.leaderRanking = Array.from({ length: 13 }, (_, i) => ({
+    id: `l${i}`,
+    name: `L${i}`,
+    team: "T",
+    position: "팀장",
+    questions: i < 2 ? 5 : 0,
+    rank: i + 1,
+  }));
+  validateLeaderRanking(p);
+  assert.equal(p.detail.records.length, 1);
+  assert.equal(p.leaderRanking.length, 13);
+  assert.equal(p.leaderRanking[12].questions, 0);
+  p.leaderRanking.pop();
+  assert.throws(() => validateLeaderRanking(p));
+});
+test("date picker defaults to seven days and validates dates before apply", async () => {
+  const { validPeriod } = await import("./PeriodPicker");
+  assert.equal(defaultQuery.range, "7d");
+  assert.equal(readQuery("?range=month").range, "month");
+  assert.ok(validPeriod("2026-10-01", "2026-10-27"));
+  assert.ok(validPeriod("2024-02-29", "2024-02-29"));
+  assert.equal(validPeriod("2026-02-29", "2026-03-01"), false);
+  assert.equal(validPeriod("2026-10-28", "2026-10-27"), false);
+  assert.equal(validPeriod("", "2026-10-27"), false);
 });

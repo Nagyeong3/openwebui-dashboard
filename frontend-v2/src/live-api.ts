@@ -39,7 +39,12 @@ export type Team = {
   chats: number;
   attachmentQuestions: number;
 };
+export type LeaderRank = Pick<
+  Person,
+  "id" | "name" | "team" | "position" | "questions" | "rank"
+>;
 export type Payload = {
+  leaderRanking?: LeaderRank[] | null;
   schemaVersion: number;
   source: string;
   updatedAt: string;
@@ -75,7 +80,7 @@ export type Payload = {
   };
 };
 export const defaultQuery: Query = {
-  range: "30d",
+  range: "7d",
   start: "",
   end: "",
   division: "전체",
@@ -101,7 +106,11 @@ export function readQuery(search: string): Query {
     "end",
   ] as const)
     q[k] = p.get(k) ?? q[k];
-  if (["all", "7d", "30d", "90d", "custom"].includes(p.get("range") || ""))
+  if (
+    ["all", "7d", "month", "30d", "90d", "custom"].includes(
+      p.get("range") || "",
+    )
+  )
     q.range = p.get("range")!;
   if (!p.has("range") && q.start && q.end) q.range = "custom";
   if (["user", "team", "leader"].includes(p.get("view") || ""))
@@ -225,7 +234,29 @@ export async function loadUsers(
     data.detail.pageSize !== q.pageSize
   )
     throw new Error("요청한 보기/페이지와 API 응답이 다릅니다.");
+  if (q.view === "leader") validateLeaderRanking(data);
   return data;
+}
+export function validateLeaderRanking(data: Payload) {
+  const rows = data.leaderRanking;
+  if (!Array.isArray(rows) || rows.length !== data.detail.total)
+    throw new Error(
+      "전체 팀장 그래프 응답이 없습니다. 최신 백엔드로 업데이트하세요.",
+    );
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (
+      !r ||
+      ![r.id, r.name, r.team, r.position].every(text) ||
+      !r.id ||
+      ids.has(r.id) ||
+      !count(r.questions) ||
+      !count(r.rank) ||
+      r.rank < 1
+    )
+      throw new Error("팀장 순위 응답 형식이 맞지 않습니다.");
+    ids.add(r.id);
+  }
 }
 
 export type Screen = "overview" | "users";

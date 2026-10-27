@@ -49,6 +49,7 @@ import {
 } from "./live-api";
 
 import Overview from "./Overview";
+import PeriodPicker from "./PeriodPicker";
 
 const ALL = "전체";
 const dateTime = (s: string | null) =>
@@ -64,6 +65,10 @@ export default function LiveApp() {
   const [screen, setScreen] = useState<Screen>(() =>
     readScreen(location.search),
   );
+  const [overviewPeriod, setOverviewPeriod] = useState<{
+    key: string;
+    period: Payload["period"];
+  } | null>(null);
   const [dark, setDark] = useState(
     () => localStorage.getItem("oui-theme") === "dark",
   );
@@ -163,20 +168,6 @@ export default function LiveApp() {
     setDrawer(null);
     setExportError("");
     setMobile(false);
-  };
-  const selectRange = (range: string) => {
-    if (range !== "custom") {
-      patch({ range });
-      return;
-    }
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "Asia/Seoul",
-    });
-    patch({
-      range,
-      start: data?.period.start || today,
-      end: data?.period.end || today,
-    });
   };
   async function exportCsv() {
     const c = new AbortController();
@@ -300,7 +291,8 @@ export default function LiveApp() {
             <div className="source-health">
               <span
                 className={
-                  "status-dot " + (screen === "overview" ? "neutral" : error ? "warning" : "")
+                  "status-dot " +
+                  (screen === "overview" ? "neutral" : error ? "warning" : "")
                 }
               />
               <div>
@@ -367,102 +359,75 @@ export default function LiveApp() {
                     : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
                 </p>
               </div>
-              <button
-                className="button"
-                onClick={() => refresh((n) => n + 1)}
-                disabled={loading}
-              >
-                <RefreshCw size={16} className={loading ? "spinning" : ""} />
-                다시 조회
-              </button>
-            </div>
-            <section className="live-filters" aria-label="기간 및 조직 필터">
-              <label>
-                기간
-                <select
-                  value={q.range}
-                  onChange={(e) => selectRange(e.target.value)}
+              <div className="live-heading-actions">
+                <PeriodPicker
+                  q={q}
+                  period={
+                    screen === "overview"
+                      ? overviewPeriod?.key === key
+                        ? overviewPeriod.period
+                        : undefined
+                      : data?.period
+                  }
+                  onChange={patch}
+                />
+                <button
+                  className="button"
+                  onClick={() => refresh((n) => n + 1)}
+                  disabled={loading}
                 >
-                  <option value="7d">최근 7일</option>
-                  <option value="30d">최근 30일</option>
-                  <option value="90d">최근 90일</option>
-                  <option value="all">전체 기간</option>
-                  <option value="custom">직접 지정</option>
-                </select>
-              </label>
-              {screen === "users" && (
-                <>
-                  <Select
-                    label="실 / 본부"
-                    value={q.division}
-                    values={choices.divisions}
-                    onChange={(division) =>
-                      patch({ division, team: ALL, position: ALL })
-                    }
-                  />
-                  <Select
-                    label="팀"
-                    value={q.team}
-                    values={choices.teams}
-                    onChange={(team) => patch({ team, position: ALL })}
-                  />
-                  <Select
-                    label="직급"
-                    value={q.position}
-                    values={choices.positions}
-                    onChange={(position) => patch({ position })}
-                  />
-                  <Select
-                    label="조직 매핑"
-                    value={q.matchStatus}
-                    values={choices.matchStatuses}
-                    onChange={(matchStatus) => patch({ matchStatus })}
-                  />
-                  <button
-                    className="button"
-                    onClick={() => {
-                      setQ({ ...defaultQuery, view: q.view });
-                      setSearch("");
-                      setDrawer(null);
-                    }}
-                  >
-                    초기화
-                  </button>
-                </>
-              )}
-            </section>
-            {q.range === "custom" && (
-              <form
-                className="live-custom"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  patch({
-                    start: String(f.get("start")),
-                    end: String(f.get("end")),
-                  });
-                }}
-                key={q.start + q.end}
-              >
-                <label>
-                  시작일
-                  <input
-                    required
-                    name="start"
-                    type="date"
-                    defaultValue={q.start}
-                  />
-                </label>
-                <label>
-                  종료일
-                  <input required name="end" type="date" defaultValue={q.end} />
-                </label>
-                <button className="button primary">기간 적용</button>
-              </form>
+                  <RefreshCw size={16} className={loading ? "spinning" : ""} />
+                  새로고침
+                </button>
+              </div>
+            </div>
+            {screen === "users" && (
+              <section className="live-filters" aria-label="조직 필터">
+                {screen === "users" && (
+                  <>
+                    <Select
+                      label="실 / 본부"
+                      value={q.division}
+                      values={choices.divisions}
+                      onChange={(division) =>
+                        patch({ division, team: ALL, position: ALL })
+                      }
+                    />
+                    <Select
+                      label="팀"
+                      value={q.team}
+                      values={choices.teams}
+                      onChange={(team) => patch({ team, position: ALL })}
+                    />
+                    <Select
+                      label="직급"
+                      value={q.position}
+                      values={choices.positions}
+                      onChange={(position) => patch({ position })}
+                    />
+                    <Select
+                      label="조직 매핑"
+                      value={q.matchStatus}
+                      values={choices.matchStatuses}
+                      onChange={(matchStatus) => patch({ matchStatus })}
+                    />
+                    <button
+                      className="button"
+                      onClick={() => {
+                        setQ({ ...defaultQuery, view: q.view });
+                        setSearch("");
+                        setDrawer(null);
+                      }}
+                    >
+                      초기화
+                    </button>
+                  </>
+                )}
+              </section>
             )}
             <p className="live-note">
-              최근 기간은 마지막 성공 수집일을 기준으로 계산합니다. 날짜 경계는
-              한국 시간입니다.
+              최근 기간과 이번달은 마지막 성공 수집일을 기준으로 계산합니다.
+              날짜 경계는 한국 시간입니다.
             </p>
             {screen === "overview" && (
               <Overview
@@ -471,6 +436,7 @@ export default function LiveApp() {
                 revision={revision}
                 dark={dark}
                 onLeaders={(query) => navigate("users", query)}
+                onPeriod={(period) => setOverviewPeriod({ key, period })}
               />
             )}
             {screen === "users" && (
@@ -534,6 +500,41 @@ export default function LiveApp() {
                     사용자는 기타 조직으로 표시됩니다.
                   </p>
                 )}
+                {q.view === "leader" && (
+                  <Panel
+                    title="팀장별 질문 수"
+                    subtitle={`선택 필터의 전체 팀장 ${number(data.detail.total)}명 · 표 페이지와 무관 · 사용량 0 포함`}
+                    className="leader-first-panel"
+                  >
+                    {!data.leaderRanking?.length ? (
+                      <Empty />
+                    ) : (
+                      <div
+                        className="leader-full-chart"
+                        tabIndex={0}
+                        role="region"
+                        aria-label="전체 팀장 질문 수 그래프. 아래로 스크롤하여 전체 순위 확인"
+                      >
+                        <Chart
+                          dark={dark}
+                          height={Math.max(260, data.leaderRanking.length * 32)}
+                          label="전체 팀장별 질문 수, 사용량 0 포함"
+                          option={barOption(
+                            data.leaderRanking.map((r) => ({
+                              name: `${r.rank}. ${r.name || "(이름 없음)"}`,
+                              value: r.questions,
+                            })),
+                            dark,
+                          )}
+                        />
+                      </div>
+                    )}
+                    <p className="live-note">
+                      모든 팀장을 표시합니다. 인원이 많으면 그래프 안에서 아래로
+                      스크롤하세요. 기간·조직·검색·정렬 조건이 적용됩니다.
+                    </p>
+                  </Panel>
+                )}
                 <div className="metrics-grid live-metrics">
                   {[
                     [
@@ -565,12 +566,6 @@ export default function LiveApp() {
                       data.summary.chats,
                       "기간 내 질문의 고유 채팅방",
                       Layers3,
-                      LayoutDashboard,
-                      Tags,
-                      Cpu,
-                      Coins,
-                      HeartPulse,
-                      ClipboardList,
                     ],
                     [
                       "파일 첨부 질문",
@@ -591,7 +586,12 @@ export default function LiveApp() {
                     );
                   })}
                 </div>
-                <div className="live-charts">
+                <div
+                  className={
+                    "live-charts " +
+                    (q.view === "leader" ? "leader-trend-only" : "")
+                  }
+                >
                   <Panel
                     title="질문 추이"
                     subtitle="선택 필터 전체 집계 · 현재 페이지와 무관"
@@ -609,23 +609,25 @@ export default function LiveApp() {
                       )}
                     />
                   </Panel>
-                  <Panel
-                    title="현재 페이지 질문 수"
-                    subtitle="현재 정렬 순서 중 앞 10개 행"
-                  >
-                    <Chart
-                      dark={dark}
-                      height={250}
-                      label="현재 페이지 사용자 또는 팀별 질문 수"
-                      option={barOption(
-                        records.slice(0, 10).map((r) => ({
-                          name: "name" in r ? r.name : r.team,
-                          value: r.questions,
-                        })),
-                        dark,
-                      )}
-                    />
-                  </Panel>
+                  {q.view !== "leader" && (
+                    <Panel
+                      title="현재 페이지 질문 수"
+                      subtitle="현재 정렬 순서 중 앞 10개 행"
+                    >
+                      <Chart
+                        dark={dark}
+                        height={250}
+                        label="현재 페이지 사용자 또는 팀별 질문 수"
+                        option={barOption(
+                          records.slice(0, 10).map((r) => ({
+                            name: "name" in r ? r.name : r.team,
+                            value: r.questions,
+                          })),
+                          dark,
+                        )}
+                      />
+                    </Panel>
+                  )}
                 </div>
                 <Panel
                   title={

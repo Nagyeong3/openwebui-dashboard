@@ -25,9 +25,11 @@ def period(start, end, range_value, latest):
         return a, b
     if range_value == "all":
         return None, None
-    if range_value not in ("7d", "30d", "90d"):
-        raise ValueError("range must be all, 7d, 30d or 90d")
+    if range_value not in ("7d", "30d", "90d", "month"):
+        raise ValueError("range must be all, 7d, month, 30d or 90d")
     b = datetime.fromisoformat(latest).astimezone(SEOUL).date()
+    if range_value == "month":
+        return b.replace(day=1), b
     return b - timedelta(days=int(range_value[:-1]) - 1), b
 
 
@@ -224,6 +226,17 @@ def user_usage(
         },
         "summary": summary,
         "daily": [{"date": k, "questions": v} for k, v in sorted(daily.items())],
+        "leaderRanking": (
+            [
+                {
+                    key: row[key]
+                    for key in ("id", "name", "team", "position", "questions", "rank")
+                }
+                for row in records
+            ]
+            if view == "leader"
+            else None
+        ),
         "detail": {
             "view": view,
             "records": (

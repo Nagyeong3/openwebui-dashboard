@@ -87,12 +87,14 @@ export default function Overview({
   revision,
   dark,
   onLeaders,
+  onPeriod,
 }: {
   q: Query;
   token: string;
   revision: number;
   dark: boolean;
   onLeaders: (q: Query) => void;
+  onPeriod?: (period: OverviewPayload["period"]) => void;
 }) {
   const [state, setState] = useState<{
     key: string;
@@ -109,7 +111,10 @@ export default function Overview({
     setDailyPage(1);
     loadOverview(q, token, c.signal)
       .then((data) => {
-        if (!c.signal.aborted) setState({ key, data });
+        if (!c.signal.aborted) {
+          setState({ key, data });
+          onPeriod?.(data.period);
+        }
       })
       .catch((e) => {
         if (!c.signal.aborted)

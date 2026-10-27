@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from backend_v2.analytics import user_usage
+from backend_v2.analytics import user_usage, period
 from backend_v2.overview import overview
 from backend_v2.app import create_app
 from backend_v2.cache import Cache, BusyError, NotReadyError
@@ -223,6 +223,56 @@ class BackendTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["summary"]["users"], 3)
             self.assertEqual(response.json()["summary"]["questions"], 3)
+
+    def test_leader_chart_all_rows_ignores_pagination(self):
+        self.client.people = [
+            {"id": f"u{i}", "name": f"Synthetic {i:02}", "email": "", "role": "user"}
+            for i in range(1, 14)
+        ]
+        path = self.root / "leaders.csv"
+        path.write_text(
+            "이름,실,팀,직급,사용자 ID\n"
+            + "".join(f"Synthetic {i:02},A,T,팀장,u{i}\n" for i in range(1, 14)),
+            encoding="utf-8",
+        )
+        settings = replace(self.settings, org_csv=path)
+        self.load()
+        result = user_usage(
+            self.cache, settings, range_value="all", view="leader", page=2, page_size=5
+        )
+        self.assertEqual(len(result["detail"]["records"]), 5)
+        self.assertEqual(len(result["leaderRanking"]), 13)
+        self.assertEqual(result["leaderRanking"][-1]["questions"], 0)
+        self.assertNotIn("email", result["leaderRanking"][0])
+        asc = user_usage(
+            self.cache,
+            settings,
+            range_value="all",
+            view="leader",
+            order="asc",
+            search="13",
+        )
+        self.assertEqual(len(asc["leaderRanking"]), 1)
+        self.assertEqual(asc["leaderRanking"][0]["id"], "u13")
+        with TestClient(create_app(settings, self.cache)) as client:
+            response = client.get(
+                "/api/dashboard/v2/users?view=leader&range=all&pageSize=5&page=2"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.json()["leaderRanking"]), 13)
+
+    def test_month_period_uses_seoul_collection_date(self):
+        start, end = period(None, None, "month", "2026-09-30T16:00:00+00:00")
+        self.assertEqual(start.isoformat(), "2026-10-01")
+        self.assertEqual(end.isoformat(), "2026-10-01")
+        self.load()
+        with TestClient(create_app(self.settings, self.cache)) as client:
+            self.assertEqual(
+                client.get("/api/dashboard/v2/users?range=month").status_code, 200
+            )
+            self.assertEqual(
+                client.get("/api/dashboard/v2/overview?range=month").status_code, 200
+            )
 
     def test_full_pagination_and_zero_users(self):
         result = self.load()
