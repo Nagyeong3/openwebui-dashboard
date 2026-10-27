@@ -2,6 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   defaultQuery,
+  readScreen,
+  userQuery,
+  leaderQuery,
+  periodParams,
+  validateOverview,
+  loadOverview,
+  overviewCsv,
+  type OverviewPayload,
   loadUsers,
   queryParams,
   readQuery,
@@ -131,4 +139,108 @@ test("actual users transport carries cancellation and dashboard auth; never snap
   } finally {
     globalThis.fetch = original;
   }
+});
+
+test("overview entry, legacy user URLs and leader filter share one user page", async () => {
+  assert.equal(readScreen(""), "overview");
+  assert.equal(readScreen("?screen=overview&view=leader"), "overview");
+  assert.equal(readScreen("?view=leader"), "users");
+  assert.equal(userQuery({ ...defaultQuery, view: "team" }).view, "user");
+  const q = leaderQuery(
+    { ...defaultQuery, team: "Old", search: "old", order: "asc", page: 4 },
+    { start: "2026-09-28", end: "2026-10-27", timezone: "Asia/Seoul" },
+  );
+  assert.equal(q.view, "leader");
+  assert.equal(q.team, "전체");
+  assert.equal(q.search, "");
+  assert.equal(q.page, 1);
+  assert.equal(q.order, "desc");
+  assert.equal(q.range, "custom");
+  assert.equal(q.pageSize, 50);
+  assert.equal(readQuery("?" + queryParams(q)).range, "custom");
+  assert.equal(readQuery("?" + queryParams(q)).start, "2026-09-28");
+  assert.deepEqual([...periodParams(q).keys()], ["start", "end"]);
+});
+
+function overviewFixture(): OverviewPayload {
+  const p = fixture();
+  return {
+    ...p,
+    summary: {
+      ...p.summary,
+      leaders: 1,
+      activeLeaders: 0,
+      averageQuestionsPerChat: null,
+    },
+    comparison: {
+      status: "zero-baseline",
+      start: "2026-09-01",
+      end: "2026-09-30",
+      questions: 0,
+      changePercent: null,
+    },
+    leaderTop10: p.detail.records,
+    integrations: {
+      tokens: {
+        status: "not-connected",
+        source: "litellm",
+        total: null,
+        input: null,
+        output: null,
+        requests: null,
+        averagePerRequest: null,
+        costUsd: null,
+      },
+      categories: {
+        status: "not-connected",
+        source: "embedding-classifier",
+        records: null,
+        classified: null,
+      },
+    },
+  };
+}
+test("overview validation retains zeros and distinguishes missing integrations", async () => {
+  const p = overviewFixture();
+  validateOverview(p);
+  assert.equal(p.leaderTop10[0].questions, 0);
+  (p.integrations.tokens as any).costUsd = 0;
+  assert.throws(() => validateOverview(p));
+  const bad = overviewFixture();
+  (bad.comparison as any).changePercent = Infinity;
+  assert.throws(() => validateOverview(bad));
+});
+test("overview transport uses only period, auth and cancellation", async () => {
+  const original = globalThis.fetch,
+    controller = new AbortController();
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(String(url), "/api/dashboard/v2/overview?range=30d");
+      assert.equal(options?.signal, controller.signal);
+      assert.equal(
+        (options?.headers as Record<string, string>).Authorization,
+        "Bearer dashboard-only",
+      );
+      return new Response(JSON.stringify(overviewFixture()), { status: 200 });
+    };
+    await loadOverview(
+      { ...defaultQuery, team: "Hidden", view: "leader", page: 5 },
+      "dashboard-only",
+      controller.signal,
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+test("overview CSV includes daily and leaders, null is blank and formulas are escaped", async () => {
+  const p = overviewFixture();
+  p.leaderTop10[0].name = "=SUM(1,2)";
+  validateOverview(p);
+  const csv = overviewCsv(p);
+  assert.ok(csv.startsWith("\ufeff"));
+  assert.ok(csv.includes("'=SUM(1,2)"));
+  assert.ok(csv.includes('"팀장 Top 10 순위"'));
+  assert.ok(csv.includes('"추정 비용"') === false);
+  assert.ok(csv.includes('"연동 준비 중"'));
+  assert.ok(!csv.includes('"null"'));
 });

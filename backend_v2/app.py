@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from .analytics import user_usage
+from .overview import overview
 from .cache import Cache, NotReadyError
 from .organization import MappingError
 from .settings import Settings
@@ -46,6 +47,19 @@ def create_app(settings=None, cache=None):
     @app.get("/api/dashboard/v2/sync/status", dependencies=[Depends(authorized)])
     def sync_status():
         return cache.status()
+
+    @app.get("/api/dashboard/v2/overview", dependencies=[Depends(authorized)])
+    def get_overview(
+        start: str | None = None,
+        end: str | None = None,
+        range: str = "30d",
+    ):
+        try:
+            return overview(cache, settings, start=start, end=end, range_value=range)
+        except NotReadyError as error:
+            raise HTTPException(503, str(error)) from None
+        except (MappingError, ValueError, OverflowError) as error:
+            raise HTTPException(422, str(error)) from None
 
     @app.get("/api/dashboard/v2/users", dependencies=[Depends(authorized)])
     def users(

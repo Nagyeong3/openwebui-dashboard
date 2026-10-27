@@ -1,3 +1,5 @@
+2026-10-27: API 개요 화면 및 사용자 메뉴 통합 구현. [개요 업데이트/폐쇄망 반입 절차](../docs/OVERVIEW_OFFLINE.md)를 참고하세요. 토큰·비용·카테고리는 연동 준비 상태입니다.
+
 # OpenWebUI Analytics v2
 
 React + TypeScript + Vite로 새로 구축한 프런트엔드입니다. 기존 Streamlit 코드 및 폐쇄망 운영 소스를 대체 설치한 상태가 아닙니다.

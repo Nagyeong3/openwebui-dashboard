@@ -8,6 +8,12 @@ import {
   ChevronRight,
   FileText,
   Layers3,
+  LayoutDashboard,
+  Tags,
+  Cpu,
+  Coins,
+  HeartPulse,
+  ClipboardList,
   Loader2,
   Menu,
   Moon,
@@ -34,27 +40,30 @@ import {
   loadUsers,
   queryParams,
   readQuery,
+  readScreen,
+  userQuery,
+  type Screen,
   type Payload,
   type Person,
   type Query,
-  type Team,
-  type View,
 } from "./live-api";
+
+import Overview from "./Overview";
 
 const ALL = "전체";
 const dateTime = (s: string | null) =>
   s
     ? new Date(s).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
     : "사용 기록 없음";
-const viewNames: Record<View, string> = {
-  user: "전체 사용자",
-  team: "팀별 현황",
-  leader: "팀장 사용량",
-};
 const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export default function LiveApp() {
-  const [q, setQ] = useState<Query>(() => readQuery(location.search));
+  const [q, setQ] = useState<Query>(() =>
+    userQuery(readQuery(location.search)),
+  );
+  const [screen, setScreen] = useState<Screen>(() =>
+    readScreen(location.search),
+  );
   const [dark, setDark] = useState(
     () => localStorage.getItem("oui-theme") === "dark",
   );
@@ -79,10 +88,11 @@ export default function LiveApp() {
     matchStatuses: [ALL],
   });
   const exportController = useRef<AbortController | null>(null);
-  const key = queryParams(q).toString() + "|" + revision + "|" + token;
+  const key =
+    screen + "|" + queryParams(q).toString() + "|" + revision + "|" + token;
   const data = state.key === key ? state.data : undefined;
   const error = state.key === key ? state.error : undefined;
-  const loading = !data && !error;
+  const loading = screen === "users" && !data && !error;
   const patch = (values: Partial<Query>) => {
     setQ((old) => ({ ...old, page: 1, ...values }));
     setDrawer(null);
@@ -98,7 +108,9 @@ export default function LiveApp() {
       if ((k === "start" || k === "end") && q.range !== "custom") continue;
       if (String(v)) p.set(k, String(v));
     }
+    p.set("screen", screen);
     history.replaceState(null, "", location.pathname + "?" + p);
+    if (screen !== "users") return;
     const controller = new AbortController();
     loadUsers(q, token, controller.signal)
       .then((payload) => {
@@ -126,7 +138,8 @@ export default function LiveApp() {
   }, [key]);
   useEffect(() => {
     const pop = () => {
-      const query = readQuery(location.search);
+      const query = userQuery(readQuery(location.search));
+      setScreen(readScreen(location.search));
       setQ(query);
       setSearch(query.search);
       setDrawer(null);
@@ -139,8 +152,16 @@ export default function LiveApp() {
     setExporting(false);
     return () => exportController.current?.abort();
   }, [key]);
-  const changeView = (view: View) => {
-    patch({ view, pageSize: 50 });
+  const navigate = (next: Screen, query = q) => {
+    const normalized = userQuery(query);
+    const p = queryParams(normalized);
+    p.set("screen", next);
+    history.pushState(null, "", location.pathname + "?" + p);
+    setScreen(next);
+    setQ(normalized);
+    setSearch(normalized.search);
+    setDrawer(null);
+    setExportError("");
     setMobile(false);
   };
   const selectRange = (range: string) => {
@@ -215,31 +236,83 @@ export default function LiveApp() {
           <div className="workspace-label">
             <span className="workspace-dot" /> API Analytics v2
           </div>
-          <div className="nav-label">PEOPLE & ORGANIZATION</div>
-          <nav aria-label="사용자 분석 보기">
-            {(Object.keys(viewNames) as View[]).map((view) => (
-              <button
-                key={view}
-                className={"nav-item " + (q.view === view ? "active" : "")}
-                aria-current={q.view === view ? "page" : undefined}
-                onClick={() => changeView(view)}
-              >
-                <Users size={18} />
-                <span>{viewNames[view]}</span>
-              </button>
-            ))}
+          <div className="nav-label">MAIN</div>
+          <nav aria-label="주 메뉴">
+            <button
+              className={"nav-item " + (screen === "overview" ? "active" : "")}
+              aria-current={screen === "overview" ? "page" : undefined}
+              onClick={() => navigate("overview")}
+            >
+              <LayoutDashboard size={18} />
+              <span>개요</span>
+            </button>
+            <button
+              className={"nav-item " + (screen === "users" ? "active" : "")}
+              aria-current={screen === "users" ? "page" : undefined}
+              onClick={() => navigate("users")}
+            >
+              <Users size={18} />
+              <span>사용자</span>
+            </button>
+            {[
+              ["질문 카테고리 분류", Tags],
+              ["모델별 현황", Cpu],
+              ["토큰 사용량", Coins],
+            ].map(([name, Icon]) => {
+              const I = Icon as typeof Users;
+              return (
+                <button
+                  key={String(name)}
+                  className="nav-item nav-pending"
+                  disabled
+                  title="후속 단계에서 연결 예정"
+                >
+                  <I size={18} />
+                  <span>{String(name)}</span>
+                  <small>준비 중</small>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="nav-label">OPERATIONS</div>
+          <nav aria-label="운영 메뉴">
+            {[
+              ["운영 업데이트", RefreshCw],
+              ["시스템 상태", HeartPulse],
+              ["로그/진단", ClipboardList],
+            ].map(([name, Icon]) => {
+              const I = Icon as typeof Users;
+              return (
+                <button
+                  key={String(name)}
+                  className="nav-item nav-pending"
+                  disabled
+                  title="후속 단계에서 연결 예정"
+                >
+                  <I size={18} />
+                  <span>{String(name)}</span>
+                  <small>준비 중</small>
+                </button>
+              );
+            })}
           </nav>
           <div className="sidebar-bottom">
             <div className="source-health">
-              <span className={"status-dot " + (error ? "warning" : "")} />
+              <span
+                className={
+                  "status-dot " + (screen === "overview" ? "neutral" : error ? "warning" : "")
+                }
+              />
               <div>
                 OpenWebUI API
                 <small>
-                  {error
-                    ? "연결 확인 필요"
-                    : data
-                      ? "분석 캐시 연결"
-                      : "데이터 확인 중"}
+                  {screen === "overview"
+                    ? "캐시 기준 조회"
+                    : error
+                      ? "연결 확인 필요"
+                      : data
+                        ? "분석 캐시 연결"
+                        : "데이터 확인 중"}
                 </small>
               </div>
             </div>
@@ -258,7 +331,7 @@ export default function LiveApp() {
               </IconButton>
               <span>Workspace</span>
               <ChevronRight size={13} />
-              <strong>People</strong>
+              <strong>{screen === "overview" ? "개요" : "사용자"}</strong>
             </div>
             <div className="topbar-actions">
               <span className="env-badge">API</span>
@@ -282,10 +355,16 @@ export default function LiveApp() {
           <main className="main live-main">
             <div className="page-heading">
               <div>
-                <span className="eyebrow">PEOPLE ANALYTICS</span>
-                <h1>{viewNames[q.view]}</h1>
+                <span className="eyebrow">
+                  {screen === "overview" ? "OVERVIEW" : "PEOPLE ANALYTICS"}
+                </span>
+                <h1>
+                  {screen === "overview" ? "OpenWebUI 사용 현황" : "사용자"}
+                </h1>
                 <p className="muted">
-                  사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황
+                  {screen === "overview"
+                    ? "사용자·질문·토큰을 한눈에 보는 종합 현황"
+                    : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
                 </p>
               </div>
               <button
@@ -311,42 +390,46 @@ export default function LiveApp() {
                   <option value="custom">직접 지정</option>
                 </select>
               </label>
-              <Select
-                label="실 / 본부"
-                value={q.division}
-                values={choices.divisions}
-                onChange={(division) =>
-                  patch({ division, team: ALL, position: ALL })
-                }
-              />
-              <Select
-                label="팀"
-                value={q.team}
-                values={choices.teams}
-                onChange={(team) => patch({ team, position: ALL })}
-              />
-              <Select
-                label="직급"
-                value={q.position}
-                values={choices.positions}
-                onChange={(position) => patch({ position })}
-              />
-              <Select
-                label="조직 매핑"
-                value={q.matchStatus}
-                values={choices.matchStatuses}
-                onChange={(matchStatus) => patch({ matchStatus })}
-              />
-              <button
-                className="button"
-                onClick={() => {
-                  setQ({ ...defaultQuery, view: q.view });
-                  setSearch("");
-                  setDrawer(null);
-                }}
-              >
-                초기화
-              </button>
+              {screen === "users" && (
+                <>
+                  <Select
+                    label="실 / 본부"
+                    value={q.division}
+                    values={choices.divisions}
+                    onChange={(division) =>
+                      patch({ division, team: ALL, position: ALL })
+                    }
+                  />
+                  <Select
+                    label="팀"
+                    value={q.team}
+                    values={choices.teams}
+                    onChange={(team) => patch({ team, position: ALL })}
+                  />
+                  <Select
+                    label="직급"
+                    value={q.position}
+                    values={choices.positions}
+                    onChange={(position) => patch({ position })}
+                  />
+                  <Select
+                    label="조직 매핑"
+                    value={q.matchStatus}
+                    values={choices.matchStatuses}
+                    onChange={(matchStatus) => patch({ matchStatus })}
+                  />
+                  <button
+                    className="button"
+                    onClick={() => {
+                      setQ({ ...defaultQuery, view: q.view });
+                      setSearch("");
+                      setDrawer(null);
+                    }}
+                  >
+                    초기화
+                  </button>
+                </>
+              )}
             </section>
             {q.range === "custom" && (
               <form
@@ -381,13 +464,42 @@ export default function LiveApp() {
               최근 기간은 마지막 성공 수집일을 기준으로 계산합니다. 날짜 경계는
               한국 시간입니다.
             </p>
+            {screen === "overview" && (
+              <Overview
+                q={q}
+                token={token}
+                revision={revision}
+                dark={dark}
+                onLeaders={(query) => navigate("users", query)}
+              />
+            )}
+            {screen === "users" && (
+              <div className="user-scope-filter">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={q.view === "leader"}
+                    onChange={(e) =>
+                      patch({
+                        view: e.target.checked ? "leader" : "user",
+                        order: "desc",
+                      })
+                    }
+                  />
+                  팀장만 보기
+                </label>
+                {q.view === "leader" && (
+                  <span>직급에 ‘팀장’이 포함된 사용자 · 사용량 0 포함</span>
+                )}
+              </div>
+            )}
             {loading && (
               <div className="live-loading" role="status">
                 <Loader2 className="spinning" size={24} />
                 <span>사용자 현황을 불러오는 중입니다.</span>
               </div>
             )}
-            {error && (
+            {screen === "users" && error && (
               <div className="error-state" role="alert">
                 <AlertTriangle size={28} />
                 <h2>사용자 데이터를 표시할 수 없습니다</h2>
@@ -404,7 +516,7 @@ export default function LiveApp() {
                 </button>
               </div>
             )}
-            {data && (
+            {screen === "users" && data && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -453,6 +565,12 @@ export default function LiveApp() {
                       data.summary.chats,
                       "기간 내 질문의 고유 채팅방",
                       Layers3,
+                      LayoutDashboard,
+                      Tags,
+                      Cpu,
+                      Coins,
+                      HeartPulse,
+                      ClipboardList,
                     ],
                     [
                       "파일 첨부 질문",
@@ -500,19 +618,21 @@ export default function LiveApp() {
                       height={250}
                       label="현재 페이지 사용자 또는 팀별 질문 수"
                       option={barOption(
-                        records
-                          .slice(0, 10)
-                          .map((r) => ({
-                            name: "name" in r ? r.name : r.team,
-                            value: r.questions,
-                          })),
+                        records.slice(0, 10).map((r) => ({
+                          name: "name" in r ? r.name : r.team,
+                          value: r.questions,
+                        })),
                         dark,
                       )}
                     />
                   </Panel>
                 </div>
                 <Panel
-                  title={viewNames[q.view] + " 전체 순위"}
+                  title={
+                    q.view === "leader"
+                      ? "사용자 순위 · 팀장 필터"
+                      : "사용자 전체 순위"
+                  }
                   subtitle="질문 수 순서 · 0건 사용자 포함 · 동률은 이름/ID 순서"
                 >
                   <div className="table-toolbar">
@@ -579,69 +699,36 @@ export default function LiveApp() {
                         <thead>
                           <tr>
                             <th>순서</th>
-                            <th>{q.view === "team" ? "팀" : "사용자명"}</th>
+                            <th>사용자명</th>
                             <th>실 / 본부</th>
-                            <th>
-                              {q.view === "team" ? "등록 사용자" : "팀 / 직급"}
-                            </th>
+                            <th>팀 / 직급</th>
                             <th>질문 수</th>
                             <th>채팅방 수</th>
-                            <th>
-                              {q.view === "team" ? "활성 사용자" : "조직 매핑"}
-                            </th>
-                            <th>{q.view === "team" ? "첨부 질문" : "상태"}</th>
+                            <th>조직 매핑</th>
+                            <th>상태</th>
                           </tr>
                         </thead>
                         <tbody>
                           {records.map((r, i) => {
-                            const person = "id" in r ? (r as Person) : null,
-                              team = r as Team;
+                            const person = r as Person;
                             return (
-                              <tr
-                                key={
-                                  person?.id ||
-                                  JSON.stringify([r.division, r.team])
-                                }
-                              >
+                              <tr key={person.id}>
                                 <td>{(q.page - 1) * q.pageSize + i + 1}</td>
                                 <td>
-                                  {person ? (
-                                    <button
-                                      className="live-person"
-                                      onClick={() => setDrawer(person)}
-                                    >
-                                      {person.name || "(이름 없음)"}
-                                    </button>
-                                  ) : (
-                                    <button
-                                      className="live-person"
-                                      onClick={() => {
-                                        patch({
-                                          view: "user",
-                                          division: r.division,
-                                          team: r.team,
-                                        });
-                                      }}
-                                    >
-                                      {r.team}
-                                    </button>
-                                  )}
+                                  <button
+                                    className="live-person"
+                                    onClick={() => setDrawer(person)}
+                                  >
+                                    {person.name || "(이름 없음)"}
+                                  </button>
                                 </td>
                                 <td>{r.division}</td>
-                                <td>
-                                  {person
-                                    ? `${person.team} / ${person.position}`
-                                    : number(team.users)}
-                                </td>
+                                <td>{`${person.team} / ${person.position}`}</td>
                                 <td>{number(r.questions)}</td>
                                 <td>{number(r.chats)}</td>
+                                <td>{person.mapping}</td>
                                 <td>
-                                  {person
-                                    ? person.mapping
-                                    : number(team.activeUsers)}
-                                </td>
-                                <td>
-                                  {person ? (
+                                  {
                                     <span
                                       className={
                                         "activity-pill " +
@@ -650,9 +737,7 @@ export default function LiveApp() {
                                     >
                                       {r.questions ? "활성" : "사용량 0"}
                                     </span>
-                                  ) : (
-                                    number(team.attachmentQuestions)
-                                  )}
+                                  }
                                 </td>
                               </tr>
                             );
@@ -663,8 +748,7 @@ export default function LiveApp() {
                   )}
                   <div className="table-footer">
                     <span>
-                      전체 {number(data.detail.total)}
-                      {q.view === "team" ? "개 팀" : "명"} · {q.page} /{" "}
+                      전체 {number(data.detail.total)}명 · {q.page} /{" "}
                       {Math.max(1, Math.ceil(data.detail.total / q.pageSize))}{" "}
                       페이지
                     </span>

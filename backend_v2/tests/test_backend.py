@@ -15,6 +15,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from backend_v2.analytics import user_usage
+from backend_v2.overview import overview
 from backend_v2.app import create_app
 from backend_v2.cache import Cache, BusyError, NotReadyError
 from backend_v2.client import OpenWebUIClient, UpstreamError, ContractError
@@ -108,6 +109,120 @@ class BackendTests(unittest.TestCase):
 
     def load(self):
         return self.sync.run("full")
+
+    def test_overview_comparison_kst_boundaries_and_single_snapshot(self):
+        def epoch(value):
+            return datetime.fromisoformat(value).timestamp()
+
+        self.client.items = [
+            message("outside", created=epoch("2026-01-01T23:59:59+09:00")),
+            message("prior", created=epoch("2026-01-02T00:00:00+09:00")),
+            message("q1", created=epoch("2026-01-04T00:00:00+09:00"), files=[{}]),
+            message("q2", created=epoch("2026-01-05T23:59:59+09:00")),
+            message("after", created=epoch("2026-01-06T00:00:00+09:00")),
+            message(
+                "answer", role="assistant", created=epoch("2026-01-04T01:00:00+09:00")
+            ),
+        ]
+        self.load()
+        with patch.object(self.cache, "read", wraps=self.cache.read) as read:
+            result = overview(
+                self.cache, self.settings, start="2026-01-04", end="2026-01-05"
+            )
+        self.assertEqual(read.call_count, 1)
+        self.assertEqual(
+            result["comparison"],
+            {
+                "status": "available",
+                "start": "2026-01-02",
+                "end": "2026-01-03",
+                "questions": 1,
+                "changePercent": 100.0,
+            },
+        )
+        self.assertEqual(result["summary"]["questions"], 2)
+        self.assertEqual(result["summary"]["attachmentQuestions"], 1)
+        self.assertEqual(result["summary"]["averageQuestionsPerChat"], 2.0)
+        self.assertEqual(sum(d["questions"] for d in result["daily"]), 2)
+        self.assertIsNone(result["integrations"]["tokens"]["costUsd"])
+        self.assertIsNone(result["integrations"]["categories"]["records"])
+
+    def test_overview_zero_baseline_decline_and_all_time(self):
+        self.client.items = [
+            message(
+                "prior",
+                created=datetime.fromisoformat("2026-01-02T12:00:00+09:00").timestamp(),
+            )
+        ]
+        self.load()
+        result = overview(
+            self.cache, self.settings, start="2026-01-03", end="2026-01-03"
+        )
+        self.assertEqual(result["comparison"]["changePercent"], -100.0)
+        self.assertEqual(result["summary"]["users"], 3)
+        self.assertIsNone(result["summary"]["averageQuestionsPerChat"])
+        self.assertEqual(result["daily"], [{"date": "2026-01-03", "questions": 0}])
+        zero = overview(self.cache, self.settings, start="2026-01-01", end="2026-01-01")
+        self.assertEqual(zero["comparison"]["status"], "zero-baseline")
+        self.assertIsNone(zero["comparison"]["changePercent"])
+        all_time = overview(self.cache, self.settings, range_value="all")
+        self.assertEqual(all_time["comparison"]["status"], "all-time")
+        self.assertIsNone(all_time["comparison"]["questions"])
+        self.assertEqual(all_time["summary"]["questions"], 1)
+
+    def test_overview_leaders_top10_matches_full_filtered_users(self):
+        self.client.people = [
+            {"id": f"u{i}", "name": f"Synthetic {i:02}", "email": "", "role": "user"}
+            for i in range(1, 14)
+        ]
+        path = self.root / "org.csv"
+        path.write_text(
+            "이름,실,팀,직급,사용자 ID\n"
+            + "".join(f"Synthetic {i:02},A,T,팀장,u{i}\n" for i in range(1, 13))
+            + "Only CSV,A,T,팀장,excluded\n",
+            encoding="utf-8-sig",
+        )
+        settings = replace(self.settings, org_csv=path)
+        self.load()
+        result = overview(self.cache, settings, range_value="all")
+        users = user_usage(
+            self.cache, settings, range_value="all", view="leader", paginate=False
+        )
+        self.assertEqual(result["summary"]["users"], 13)
+        self.assertEqual(result["summary"]["leaders"], 12)
+        self.assertEqual(result["summary"]["activeLeaders"], 1)
+        self.assertEqual(len(result["leaderTop10"]), 10)
+        self.assertEqual(result["leaderTop10"], users["detail"]["records"][:10])
+        self.assertEqual(result["leaderTop10"][-1]["questions"], 0)
+        self.assertEqual(users["detail"]["records"][-1]["questions"], 0)
+        path.write_text("이름,실,팀,직급,사용자 ID\n", encoding="utf-8")
+        self.assertEqual(
+            overview(self.cache, settings, range_value="all")["summary"]["leaders"], 0
+        )
+
+    def test_overview_api_auth_validation_and_ready(self):
+        app = create_app(
+            replace(self.settings, dashboard_token="dashboard-only"), self.cache
+        )
+        with TestClient(app) as client:
+            url = "/api/dashboard/v2/overview"
+            self.assertEqual(client.get(url).status_code, 401)
+            headers = {"Authorization": "Bearer dashboard-only"}
+            self.assertEqual(client.get(url, headers=headers).status_code, 503)
+            self.load()
+            self.assertEqual(
+                client.get(url + "?range=invalid", headers=headers).status_code, 422
+            )
+            self.assertEqual(
+                client.get(
+                    url + "?start=2026-01-02&end=2026-01-01", headers=headers
+                ).status_code,
+                422,
+            )
+            response = client.get(url + "?range=all", headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["summary"]["users"], 3)
+            self.assertEqual(response.json()["summary"]["questions"], 3)
 
     def test_full_pagination_and_zero_users(self):
         result = self.load()
