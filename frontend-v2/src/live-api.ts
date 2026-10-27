@@ -14,6 +14,7 @@ export type Query = {
   pageSize: number;
   order: "asc" | "desc";
   search: string;
+  model: string;
 };
 export type Person = {
   id: string;
@@ -92,11 +93,13 @@ export const defaultQuery: Query = {
   pageSize: 50,
   order: "desc",
   search: "",
+  model: "전체",
 };
 export function readQuery(search: string): Query {
   const p = new URLSearchParams(search),
     q = { ...defaultQuery };
   for (const k of [
+    "model",
     "division",
     "team",
     "position",
@@ -259,9 +262,10 @@ export function validateLeaderRanking(data: Payload) {
   }
 }
 
-export type Screen = "overview" | "users";
+export type Screen = "overview" | "users" | "tokens";
 export function readScreen(search: string): Screen {
   const p = new URLSearchParams(search);
+  if (p.get("screen") === "tokens") return "tokens";
   if (p.get("screen") === "overview") return "overview";
   // Preserve old bookmarked user/leader views; no separate team/leader pages.
   return p.get("screen") === "users" || p.has("view") ? "users" : "overview";
@@ -296,14 +300,17 @@ export type OverviewPayload = Pick<
   leaderTop10: Person[];
   integrations: {
     tokens: {
-      status: "not-connected";
+      status: "not-connected" | "not-synced" | "ready";
       source: "litellm";
-      total: null;
-      input: null;
-      output: null;
-      requests: null;
-      averagePerRequest: null;
-      costUsd: null;
+      total: number | null;
+      input: number | null;
+      output: number | null;
+      requests: number | null;
+      averagePerRequest: number | null;
+      costUsd: number | null;
+      missingCostRequests?: number;
+      stale?: boolean;
+      updatedAt?: string;
     };
     categories: {
       status: "not-connected";
@@ -381,18 +388,29 @@ export function validateOverview(
   if (c.status === "zero-baseline" && c.questions !== 0) fail();
   const t = p.integrations?.tokens,
     categories = p.integrations?.categories;
+  const finite = (v: unknown) =>
+    v === null || (typeof v === "number" && Number.isFinite(v) && v >= 0);
   if (
     !t ||
-    t.status !== "not-connected" ||
+    !["ready", "not-connected", "not-synced"].includes(t.status) ||
     t.source !== "litellm" ||
-    [
+    ![
       t.total,
       t.input,
       t.output,
       t.requests,
       t.averagePerRequest,
       t.costUsd,
-    ].some((v) => v !== null) ||
+    ].every(finite) ||
+    (t.status !== "ready" &&
+      [
+        t.total,
+        t.input,
+        t.output,
+        t.requests,
+        t.averagePerRequest,
+        t.costUsd,
+      ].some((v) => v !== null)) ||
     !categories ||
     categories.status !== "not-connected" ||
     categories.source !== "embedding-classifier" ||
@@ -459,7 +477,12 @@ export function overviewCsv(p: OverviewPayload): string {
     ["이전 기간 종료일", p.comparison.end],
     ["이전 기간 질문 수", p.comparison.questions],
     ["질문 증감률 (%)", p.comparison.changePercent],
-    ["토큰·비용", "연동 준비 중"],
+    [
+      "토큰·비용 상태",
+      p.integrations.tokens.status === "ready" ? "연동 완료" : "연동 준비 중",
+    ],
+    ["총 토큰", p.integrations.tokens.total],
+    ["추정 비용 USD", p.integrations.tokens.costUsd],
     ["질문 카테고리", "분류 준비 중"],
     [],
     ["날짜", "질문 수"],

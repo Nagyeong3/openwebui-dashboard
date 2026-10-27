@@ -204,3 +204,9 @@ Recommended validation cases:
 ## 2026-10-27 후속: 기간 지정 / 전체 팀장 그래프
 
 신규 코드 구현: 개요와 사용자의 기간 기본값을 최근 7일로 변경하고 최근7일/이번달/전체기간/기간지정 메뉴를 제공합니다. 사용자 제공 사진 기준으로 우측 상단 기간 선택 옆에 새로고침을 놓고, 버튼 아래 시작일/종료일·취소/적용 팝오버를 배치했습니다. 팀장만 보기에는 전체 팀장 그래프를 KPI 앞에 배치하며 /users의 leaderRanking은 표 페이지와 무관한 전체 필터 결과입니다. 0건 포함, 큰 명부는 그래프 내 세로 스크롤. 백엔드41/프런트22 테스트 통과. 기존 캐시/환경은 유지하며 마이그레이션이나 full 재수집이 필요하지 않습니다. 실제 폐쇄망 UI 검수는 남아 있습니다.
+
+## 2026-10-27 LiteLLM 수집 신규 구현
+
+사용자 제공 기존 env 역할과 토큰 화면을 참고해 별도 v2 token cache, v2 페이지 수집, full/quick, 비동기 웹 작업/상태, CLI token-sync/token-status, 토큰 분석과 개요 연동을 구현했습니다. 기존 token_usage_cache.db/category_cache.db는 자동 이관하거나 덮어쓰지 않습니다. .env TOKEN_CACHE_DB_PATH는 새 token_usage_v2.sqlite3를 사용합니다. 모델 가격 CSV는 spend 누락일 때만 fallback하며 실제 spend 0은 유지합니다. end_user/명시적 OpenWebUI 메타데이터로 명부와 연결하고 LiteLLM 키 소유자의 user 필드는 직원으로 추측하지 않습니다. 미식별은 전체 합계에 포함, 조직 필터에서는 제외합니다. 카테고리 키/캐시/CSV는 참고만 기록했고 분류 구현은 별도입니다. 출처/설정/현장 검수는 docs/TOKEN_USAGE_OFFLINE.md. 실제 LiteLLM 서버/버전과 브라우저 검수는 미완료입니다.
+
+토큰 릴리스 로컬 검증: Python 55개/프런트 24개 테스트 통과, API 빌드 성공. 비동기 시작/상태/중복거절, capped total 초과 페이지 수집, 실제 0원/누락/CSV fallback, 원천 변경/기존 DB 보호, 실패 원자성, 키 소유자 오매핑 방지, 전체 CSV를 합성 데이터로 확인했습니다. 실제 LiteLLM/브라우저는 현장 검수 필요.

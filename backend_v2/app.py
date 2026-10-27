@@ -24,7 +24,7 @@ def create_app(settings=None, cache=None):
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
-            allow_methods=["GET"],
+            allow_methods=["GET", "POST"],
             allow_headers=["Authorization"],
         )
 
@@ -182,6 +182,10 @@ def create_app(settings=None, cache=None):
                 "Cache-Control": "no-store",
             },
         )
+
+    from .token_api import attach
+
+    attach(app, settings, cache, authorized)
 
     # Optional same-origin static hosting: no Node runtime, proxy or CORS required.
     frontend = settings.frontend_dir

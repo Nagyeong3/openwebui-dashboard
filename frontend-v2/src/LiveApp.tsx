@@ -49,6 +49,7 @@ import {
 } from "./live-api";
 
 import Overview from "./Overview";
+import Tokens from "./Tokens";
 import PeriodPicker from "./PeriodPicker";
 
 const ALL = "전체";
@@ -245,10 +246,17 @@ export default function LiveApp() {
               <Users size={18} />
               <span>사용자</span>
             </button>
+            <button
+              className={"nav-item " + (screen === "tokens" ? "active" : "")}
+              aria-current={screen === "tokens" ? "page" : undefined}
+              onClick={() => navigate("tokens")}
+            >
+              <Coins size={18} />
+              <span>토큰 사용량</span>
+            </button>
             {[
               ["질문 카테고리 분류", Tags],
               ["모델별 현황", Cpu],
-              ["토큰 사용량", Coins],
             ].map(([name, Icon]) => {
               const I = Icon as typeof Users;
               return (
@@ -292,7 +300,7 @@ export default function LiveApp() {
               <span
                 className={
                   "status-dot " +
-                  (screen === "overview" ? "neutral" : error ? "warning" : "")
+                  (screen !== "users" ? "neutral" : error ? "warning" : "")
                 }
               />
               <div>
@@ -323,7 +331,13 @@ export default function LiveApp() {
               </IconButton>
               <span>Workspace</span>
               <ChevronRight size={13} />
-              <strong>{screen === "overview" ? "개요" : "사용자"}</strong>
+              <strong>
+                {screen === "overview"
+                  ? "개요"
+                  : screen === "tokens"
+                    ? "토큰 사용량"
+                    : "사용자"}
+              </strong>
             </div>
             <div className="topbar-actions">
               <span className="env-badge">API</span>
@@ -348,22 +362,32 @@ export default function LiveApp() {
             <div className="page-heading">
               <div>
                 <span className="eyebrow">
-                  {screen === "overview" ? "OVERVIEW" : "PEOPLE ANALYTICS"}
+                  {screen === "overview"
+                    ? "OVERVIEW"
+                    : screen === "tokens"
+                      ? "TOKEN ANALYTICS"
+                      : "PEOPLE ANALYTICS"}
                 </span>
                 <h1>
-                  {screen === "overview" ? "OpenWebUI 사용 현황" : "사용자"}
+                  {screen === "overview"
+                    ? "OpenWebUI 사용 현황"
+                    : screen === "tokens"
+                      ? "토큰 사용량"
+                      : "사용자"}
                 </h1>
                 <p className="muted">
                   {screen === "overview"
                     ? "사용자·질문·토큰을 한눈에 보는 종합 현황"
-                    : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
+                    : screen === "tokens"
+                      ? "LiteLLM 로그로 확인하는 토큰 사용량과 비용"
+                      : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
                 </p>
               </div>
               <div className="live-heading-actions">
                 <PeriodPicker
                   q={q}
                   period={
-                    screen === "overview"
+                    screen !== "users"
                       ? overviewPeriod?.key === key
                         ? overviewPeriod.period
                         : undefined
@@ -437,6 +461,17 @@ export default function LiveApp() {
                 dark={dark}
                 onLeaders={(query) => navigate("users", query)}
                 onPeriod={(period) => setOverviewPeriod({ key, period })}
+              />
+            )}
+            {screen === "tokens" && (
+              <Tokens
+                q={q}
+                token={token}
+                revision={revision}
+                dark={dark}
+                onChange={patch}
+                onPeriod={(period) => setOverviewPeriod({ key, period })}
+                onUpdated={() => refresh((n) => n + 1)}
               />
             )}
             {screen === "users" && (
@@ -789,8 +824,8 @@ export default function LiveApp() {
                   </div>
                 </Panel>
                 <div className="live-note live-unconnected">
-                  토큰·비용·질문 카테고리는 아직 연결되지 않았습니다. 이번
-                  화면은 OpenWebUI 질문 활동만 표시합니다.
+                  이 화면은 OpenWebUI 질문 활동을 표시합니다. 토큰·비용은 토큰
+                  사용량 탭에서 확인하세요. 질문 카테고리 분류는 준비 중입니다.
                 </div>
                 <footer className="page-footer">
                   <span>마지막 성공 수집: {dateTime(data.updatedAt)}</span>
@@ -868,8 +903,8 @@ export default function LiveApp() {
               <dd>OpenWebUI API</dd>
             </dl>
             <p className="detail-note">
-              질문 0건 사용자도 OpenWebUI 명부에 존재하면 표시됩니다. 토큰과
-              비용은 아직 연결되지 않았습니다.
+              질문 0건 사용자도 OpenWebUI 명부에 존재하면 표시됩니다.
+              토큰·비용은 토큰 사용량 탭에서 확인하세요.
             </p>
             <button className="button" onClick={() => setDrawer(null)}>
               <X size={15} />

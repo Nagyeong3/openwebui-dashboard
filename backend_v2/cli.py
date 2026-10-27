@@ -14,11 +14,26 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("sync")
     p.add_argument("--kind", choices=("full", "quick"), default="quick")
+    token = sub.add_parser("token-sync")
+    token.add_argument("--kind", choices=("full", "quick"), default="quick")
+    sub.add_parser("token-status")
     sub.add_parser("status")
     sub.add_parser("init")
     args = parser.parse_args()
     try:
         settings = Settings.from_env()
+        if args.command in ("token-sync", "token-status"):
+            from .token_store import TokenStore
+            from .token_sync import prepare, collect
+
+            store = TokenStore(settings.token_cache_path)
+            result = (
+                collect(settings, store, prepare(settings, store, args.kind))
+                if args.command == "token-sync"
+                else store.status()
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         cache = Cache(settings.cache_path)
         if args.command == "sync":
             result = Synchronizer(settings, cache).run(args.kind)

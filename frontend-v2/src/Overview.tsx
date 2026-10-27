@@ -146,6 +146,7 @@ export default function Overview({
         개요를 불러오는 중입니다.
       </div>
     );
+  const tokens = data.integrations.tokens;
   const s = data.summary,
     c = data.comparison;
   const comparisonNote =
@@ -224,8 +225,14 @@ export default function Overview({
             <span>총 토큰</span>
             <Layers3 size={18} />
           </div>
-          <strong className="pending-value">—</strong>
-          <div className="metric-note">LiteLLM 연동 준비 중</div>
+          <strong className="pending-value">
+            {tokens.total === null ? "—" : number(tokens.total)}
+          </strong>
+          <div className="metric-note">
+            {tokens.status === "ready"
+              ? "LiteLLM 로그 기준"
+              : "LiteLLM 수집 준비 중"}
+          </div>
         </article>
       </div>
       {c.start && (
@@ -379,26 +386,58 @@ export default function Overview({
             <CircleDollarSign size={25} />
             <div>
               <span>추정 비용</span>
-              <strong>—</strong>
+              <strong>
+                {tokens.costUsd === null
+                  ? "—"
+                  : "$" + tokens.costUsd.toFixed(4)}
+              </strong>
             </div>
-            <small>LiteLLM 연동 준비 중</small>
+            <small>
+              {tokens.status === "ready"
+                ? "LiteLLM 기준"
+                : "LiteLLM 수집 준비 중"}
+            </small>
           </div>
           <div className="overview-token-total">
             <Layers3 size={19} />
             <span>총 토큰</span>
-            <strong>—</strong>
+            <strong>
+              {tokens.total === null ? "—" : number(tokens.total)}
+            </strong>
           </div>
           <div className="overview-token-grid">
             {["입력 토큰", "출력 토큰", "요청 수", "평균 토큰/요청"].map(
-              (label) => (
+              (label, index) => (
                 <div key={label}>
                   <span>{label}</span>
-                  <strong>—</strong>
+                  <strong>
+                    {[
+                      tokens.input,
+                      tokens.output,
+                      tokens.requests,
+                      tokens.averagePerRequest,
+                    ][index] === null
+                      ? "—"
+                      : number(
+                          [
+                            tokens.input,
+                            tokens.output,
+                            tokens.requests,
+                            tokens.averagePerRequest,
+                          ][index]!,
+                        )}
+                  </strong>
                 </div>
               ),
             )}
           </div>
-          <p className="live-note">미연결 값은 실제 0과 구분하여 표시합니다.</p>
+          <p className="live-note">
+            {tokens.status !== "ready"
+              ? "미수집 값은 실제 0과 구분하여 표시합니다."
+              : tokens.missingCostRequests
+                ? "비용이 누락된 요청이 있습니다. 토큰 화면에서 확인하세요."
+                : "로그 spend 우선 · 누락 시 설정된 가격표로 추정"}
+          </p>
         </Panel>
         <Panel
           title="팀장 Top 10"
@@ -474,8 +513,8 @@ export default function Overview({
           })}
         </span>
         <span>
-          사용자·질문: OpenWebUI API / 토큰·비용: LiteLLM 연결 예정 / 카테고리:
-          임베딩 분류 예정
+          사용자·질문: OpenWebUI API / 토큰·비용: LiteLLM / 카테고리: 임베딩
+          분류 예정
         </span>
       </footer>
     </div>

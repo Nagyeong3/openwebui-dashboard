@@ -86,6 +86,36 @@ def overview(cache, settings, *, start=None, end=None, range_value="30d"):
                 }
                 for i in range((last - first).days + 1)
             ]
+    tokens = {
+        "status": "not-connected",
+        "source": "litellm",
+        "total": None,
+        "input": None,
+        "output": None,
+        "requests": None,
+        "averagePerRequest": None,
+        "costUsd": None,
+    }
+    if settings.litellm_url or settings.token_cache_path.exists():
+        try:
+            from .token_analytics import token_usage
+
+            result = token_usage(
+                cache,
+                settings,
+                start=a,
+                end=b,
+                range_value="all" if not a else range_value,
+            )
+            tokens = {
+                **result["summary"],
+                "status": "ready",
+                "source": "litellm",
+                "updatedAt": result["updatedAt"],
+                "stale": result["dataState"]["stale"],
+            }
+        except Exception:
+            tokens["status"] = "not-synced"
     return {
         "schemaVersion": 1,
         "source": payload["source"],
@@ -97,16 +127,7 @@ def overview(cache, settings, *, start=None, end=None, range_value="30d"):
         "daily": daily,
         "leaderTop10": leaders[:10],
         "integrations": {
-            "tokens": {
-                "status": "not-connected",
-                "source": "litellm",
-                "total": None,
-                "input": None,
-                "output": None,
-                "requests": None,
-                "averagePerRequest": None,
-                "costUsd": None,
-            },
+            "tokens": tokens,
             "categories": {
                 "status": "not-connected",
                 "source": "embedding-classifier",

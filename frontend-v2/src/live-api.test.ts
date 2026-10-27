@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { validateTokens, loadTokens } from "./Tokens";
 import assert from "node:assert/strict";
 import {
   defaultQuery,
@@ -283,4 +284,70 @@ test("date picker defaults to seven days and validates dates before apply", asyn
   assert.equal(validPeriod("2026-02-29", "2026-03-01"), false);
   assert.equal(validPeriod("2026-10-28", "2026-10-27"), false);
   assert.equal(validPeriod("", "2026-10-27"), false);
+});
+
+test("token API keeps missing values distinct from zero and authenticates transport", async () => {
+  const totals = {
+    total: null,
+    input: 0,
+    output: null,
+    costUsd: 0,
+    requests: 1,
+    averagePerRequest: null,
+    missingCostRequests: 0,
+    missingTokenRequests: 1,
+    estimatedCostRequests: 0,
+  };
+  const p = {
+    schemaVersion: 1,
+    source: "litellm-api-cache",
+    summary: totals,
+    period: { start: null, end: null, timezone: "Asia/Seoul" },
+    filters: {},
+    dataState: {},
+    detail: { records: [] },
+    daily: [],
+    topUsers: [],
+    users: [],
+    teams: [],
+    models: [],
+  };
+  validateTokens(p);
+  assert.equal(p.summary.costUsd, 0);
+  assert.equal(p.summary.total, null);
+  const original = globalThis.fetch,
+    c = new AbortController();
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.ok(String(url).startsWith("/api/dashboard/v2/tokens?"));
+      assert.ok(String(url).includes("model="));
+      assert.equal(options?.signal, c.signal);
+      assert.equal(
+        (options?.headers as Record<string, string>).Authorization,
+        "Bearer dashboard-only",
+      );
+      return new Response(JSON.stringify(p), { status: 200 });
+    };
+    await loadTokens(defaultQuery, "dashboard-only", c.signal);
+  } finally {
+    globalThis.fetch = original;
+  }
+  (p.summary as any).total = NaN;
+  assert.throws(() => validateTokens(p));
+});
+test("token navigation is live and overview accepts connected token values", () => {
+  assert.equal(readScreen("?screen=tokens"), "tokens");
+  const p = overviewFixture();
+  p.integrations.tokens = {
+    status: "ready",
+    source: "litellm",
+    total: 15,
+    input: 10,
+    output: 5,
+    requests: 1,
+    averagePerRequest: 15,
+    costUsd: 0,
+  };
+  validateOverview(p);
+  assert.ok(overviewCsv(p).includes("연동 완료"));
 });
