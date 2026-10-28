@@ -17,7 +17,7 @@ def attach(app, settings, cache, authorized):
                 configured,error = True,None
             except ValueError as e:
                 configured,error = False,str(e)
-            return {**store.status(),'configured':configured,'configurationError':error,'batchLimit':settings.category_max_questions}
+            return {**store.status(),'configured':configured,'configurationError':error,'batchLimit':settings.category_max_questions,'sampleLimit':min(20,settings.category_max_questions)}
         except RuntimeError as e:
             raise HTTPException(422,str(e)) from None
 
@@ -39,6 +39,14 @@ def attach(app, settings, cache, authorized):
                 pass
         Thread(target=work,daemon=True,name='category-classifier').start()
         return {'ok':True,'runId':run,'status':'running'}
+
+    @app.post('/api/dashboard/v2/categories/stop',status_code=202,dependencies=[Depends(authorized)])
+    def stop():
+        try:
+            run=CategoryStore(settings.category_cache_path).request_stop()
+            return {'ok':True,'runId':run,'status':'stopping'}
+        except BusyError as e:
+            raise HTTPException(409,str(e)) from None
 
     @app.get('/api/dashboard/v2/categories',dependencies=[Depends(authorized)])
     def usage(start:str|None=None,end:str|None=None,range:str='7d',division:str='전체',team:str='전체',position:str='전체',category:str='전체',page:int=Query(1,ge=1),pageSize:int=Query(50,ge=1,le=1000)):

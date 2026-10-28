@@ -2508,3 +2508,5 @@ tbody tr:last-child td {
 
 .category-definitions { display:grid; gap:16px; padding:8px 0; max-height:320px; overflow:auto; }
 .category-definitions p { margin:6px 0 0; line-height:1.6; }
+
+.category-progress { width:100%; height:8px; accent-color:var(--accent,#726bec); margin:8px 0; }

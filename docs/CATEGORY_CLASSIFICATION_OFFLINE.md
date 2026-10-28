@@ -23,7 +23,7 @@ CATEGORY_DEFINITIONS_CSV_PATH=data/question_categories.csv
 CATEGORY_LITELLM_BASE_URL=
 CATEGORY_LITELLM_API_KEY=실제_분류모델_호출권한_키
 CATEGORY_LLM_MODEL=LiteLLM에_등록된_실제_모델별칭
-CATEGORY_LLM_MAX_QUESTIONS=20
+CATEGORY_LLM_MAX_QUESTIONS=200
 CATEGORY_BATCH_SIZE=5
 CATEGORY_MAX_QUESTION_CHARS=6000
 CATEGORY_MIN_CONFIDENCE=0.65
@@ -36,7 +36,7 @@ CATEGORY_CLASSIFIER_REVISION=1
 - **분류 키는 모델 추론 권한이 필요합니다.** spend 로그 조회 키와 역할이 다르므로 별도로 설정합니다. OWUI 관리자 키와 DASHBOARD_API_TOKEN도 다릅니다. 키는 Bearer 헤더로만 전달하며 과거 API_KEY_IN_QUERY 옵션은 사용하지 않습니다.
 - 가능하면 분류 전용 LiteLLM 키/별칭을 사용하고, 토큰 수집의 REQUIRED_API_KEY_ALIAS는 OpenWebUI 서비스 키로 유지합니다. 분류 요청 비용이 사용자 서비스 사용량에 섞이지 않게 운영합니다. 같은 키를 사용하면 분류 호출도 사용자 토큰 통계에 포함될 수 있습니다.
 - **CATEGORY_CACHE_DB_PATH는 새로운 v2 파일**을 사용합니다. 기존 `category_cache.db`는 보존하며 자동 이관하지 않습니다. DB 식별자가 다르면 실행을 거부합니다. OpenWebUI/토큰/카테고리 캐시 경로는 모두 달라야 합니다.
-- 점수는 모델의 자기 평가이며 통계적으로 보정된 확률이 아닙니다. 기본 0.65 미만이나 null 분류는 `검토 필요`로 저장합니다.
+- 점수는 모델의 자기 평가이며 통계적으로 보정된 확률이 아닙니다. 기본 0.65 미만이나 null 분류는 활성 `기타`로 처리합니다. 기존 검토 필요 결과도 현재 조회에서 기타로 포함하며 재호출하지 않습니다. 기타는 활성 정의에 반드시 있어야 합니다. 잘못된 JSON·API 오류는 기타로 숨기지 않고 작업 실패로 기록합니다.
 - JSON 모드 지원은 모델마다 다릅니다. `response_format` 미지원 400/422라면 현장 모델 지원을 확인하고 CATEGORY_JSON_MODE=false로 설정 후 재시작할 수 있습니다. 이때도 결과 ID/카테고리/점수/누락 검증은 유지하며 잘못된 응답을 성공 처리하지 않습니다. `temperature=0`, `max_tokens=2048`, 일반 non-stream chat completion을 지원하는 모델이 대상입니다.
 
 ## 2. 서버 실행과 첫 20개 검수 (CMD)
@@ -47,26 +47,26 @@ cd /d D:\project\oui-dashboard-v2
 python -m uvicorn backend_v2.app:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
-브라우저 `http://localhost:8011/?screen=categories`에서 Ctrl+F5 후 **미처리 질문 분류**를 누릅니다. 인증을 설정했다면 상단 대시보드 인증 설정을 입력합니다. HTTP 202는 접수이며 완료가 아닙니다. 진행 표시가 완료로 바뀌는지 확인합니다.
+브라우저 `http://localhost:8011/?screen=categories`에서 Ctrl+F5 후 **소량 테스트 (20개)**를 먼저 누릅니다. 인증을 설정했다면 상단 대시보드 인증 설정을 입력합니다. HTTP 202는 접수이며 완료가 아닙니다. 진행 표시가 완료로 바뀌는지 확인합니다.
 
 별도 CMD로 실행하려면 웹 버튼과 동시에 실행하지 말고:
 
 ```bat
 conda activate D:\project\oui-env-v2
 cd /d D:\project\oui-dashboard-v2
-python -m backend_v2.cli category-classify --kind pending
+python -m backend_v2.cli category-classify --kind sample
 python -m backend_v2.cli category-status
 ```
 
-분류 작업은 **전체 기간 미처리 질문 중 최근순**, 한 번에 설정한 최대 질문 수만 처리합니다. 화면의 기간/조직 필터는 조회만 바꾸며 분류 실행 범위를 바꾸지 않습니다. 기본 배포값은 200이지만 첫 검수는 20으로 권장합니다. 정상 확인 후 `.env`의 한도를 200으로 바꾸고 서버를 재시작하면 됩니다. 버튼 또는 CLI를 반복하면 남은 미처리 질문을 이어 처리합니다. 대량 전체를 한 번에 무제한 자동 처리하지 않습니다.
-
-검토 필요 결과를 다시 시도하려면:
+**전체 미처리 질문 분류** 버튼은 기간 선택과 관계없이 시작 시점의 전체 미처리 질문을 끝까지 자동 처리합니다. 200개는 내부 체크포인트 구간이고 모델 호출은 기본 5개 단위입니다. 같은 사용자의 API 페이지를 구간마다 처음부터 반복 수집하지 않고 한 번 순회합니다. 브라우저를 닫아도 서버 프로세스가 살아 있으면 계속 실행됩니다. 총 대상/처리 건수와 진행률을 보여주며 **중지**는 진행 중인 모델 호출 결과를 저장한 뒤 중단합니다. 재실행은 저장되지 않은 질문만 처리합니다. 서버 재시작/장애 시 자동 재시작은 하지 않으며 약 10분 잠금 만료 후 다시 버튼을 누릅니다.
 
 ```bat
-python -m backend_v2.cli category-classify --kind retry
+python -m backend_v2.cli category-classify --kind pending
 ```
 
-또는 **검토 필요 재시도** 버튼을 사용합니다. 같은 정의와 모델에서 판정이 달라지지 않을 수 있으므로 CSV의 경계를 개선하고 검수합니다.
+소량 테스트는 최대 min(20, CATEGORY_LLM_MAX_QUESTIONS)개만 처리합니다. 전체 처리에서는 CATEGORY_LLM_MAX_QUESTIONS=20인 기존 설정도 전체를 계속 처리하므로, 소량 확인에는 반드시 sample을 사용합니다. 실행 도중 들어온 새 질문은 다음 OWUI 동기화 후 다음 분류에 포함됩니다. 원본 수정/삭제로 조회하지 못한 대상이 있으면 일부 미완료로 알립니다. OWUI quick 동기화 후 재실행하세요.
+
+기존 애매한 결과와 낮은 판단 점수 결과는 **기타**로 집계합니다. 상세 표에는 기타 처리 여부와 원래 판단 점수를 남깁니다. 필요할 때 CLI `--kind retry`는 기존 uncertain/fallback 결과를 다시 판단합니다. CSV 변경은 기존과 같이 새 프로필을 만들므로 전체 재분류 대상이 될 수 있습니다.
 
 ## 3. 데이터 처리와 캐시 유효성
 
@@ -75,7 +75,7 @@ python -m backend_v2.cli category-classify --kind retry
 - 로컬 DB에는 버전/해시, 카테고리, 판단 점수, 처리 상태/시각만 저장합니다. 원문·파일명·파일내용·모델 응답 전문·판정 이유는 저장하거나 응답에 포함하지 않습니다.
 - 모델 요청에는 임시 Q0/Q1 ID와 질문 텍스트/첨부 유무만 넣습니다. 사용자명·이메일·OWUI ID·파일 경로를 추가하지 않습니다. **질문 본문 자체에 포함된 정보는 모델 서버로 전달됩니다.** 기존과 동일하게 사내 승인된 LiteLLM 경로와 모델을 사용하며 LiteLLM 측 프롬프트 로그 보존 정책도 별도로 적용됩니다.
 - 질문 안의 지시는 실행하지 않도록 시스템 프롬프트에서 분리하고, 모델 응답은 허용된 카테고리 코드와 입력 ID만 인정합니다. 도구 호출/스트리밍/임의 후속 동작은 없습니다.
-- 성공한 배치 단위로 저장합니다. 다음 배치가 실패해도 앞선 결과는 유지하고 해당 실패 배치는 성공 처리하지 않습니다. 서버를 강제 종료하면 약 10분 후 작업 잠금이 만료됩니다. 이후 pending 재실행으로 이어갑니다. 진행 중인 작업은 웹 새로고침 시 상태를 다시 읽습니다.
+- 성공한 모델 호출 배치 단위로 저장합니다. 다음 배치가 실패해도 앞선 결과는 유지하고 해당 실패 배치는 성공 처리하지 않습니다. 서버를 강제 종료하면 약 10분 후 작업 잠금이 만료됩니다. 이후 pending 재실행으로 이어갑니다. 진행 중인 작업은 웹 새로고침 시 상태를 다시 읽습니다.
 - 질문 수정/삭제/사용자 삭제는 다음 OWUI quick/full 동기화 결과가 기준입니다. 분류 전 API 원문 해시와 현재 분석 snapshot 해시가 다르면 원본 확인 필요로 건너뜁니다. OWUI quick 동기화 후 분류를 다시 실행합니다. 삭제된 질문/사용자의 과거 분류 캐시는 현재 통계에 포함하지 않습니다.
 - 활성 정의/설명/키워드/예시, 모델, URL, 임계값, 길이, JSON 모드, revision 변경은 새로운 분류 버전으로 처리합니다. 이전 버전 결과를 삭제하지 않으며 현재 통계에 섞지 않습니다. **미처리로 돌아온 뒤 pending을 다시 실행**합니다. 같은 모델 별칭의 실제 모델을 교체했다면 CATEGORY_CLASSIFIER_REVISION을 올립니다.
 - 질문 텍스트가 없거나 이미지/파일만 있으면 텍스트 없음. 모델에 보내지 않으며 미분류에 포함합니다. 멀티모달 content는 text/input_text 부분만 사용합니다.
@@ -83,7 +83,7 @@ python -m backend_v2.cli category-classify --kind retry
 
 ## 4. 확인할 항목
 
-1. 총 질문 수 = 분류 완료 + 미처리 + 검토 필요 + 텍스트 없음.
+1. 총 질문 수 = 분류 완료 + 미처리 + 텍스트 없음.
 2. 카테고리 분포 합계 = 같은 기간·조직의 총 질문 수. 미분류가 포함되며 0과 미수집을 혼동하지 않습니다.
 3. 개요의 카테고리 합계가 같은 기간의 총 질문 수와 일치. 부분 분류 시 나머지는 미분류.
 4. 같은 설정으로 pending을 다시 실행하면 완료 질문을 다시 모델 호출하지 않음.
@@ -96,10 +96,11 @@ python -m backend_v2.cli category-classify --kind retry
 대시보드 인증 동일:
 
 - GET `/api/dashboard/v2/categories/status`: 설정 여부, 작업, 한도. 원문/키 없음.
-- POST `/api/dashboard/v2/categories/classify?kind=pending|retry`: 202 비동기 접수, 중복 409.
+- POST `/api/dashboard/v2/categories/classify?kind=pending|sample|retry`: 202 비동기 접수, 중복 409.
+- POST `/api/dashboard/v2/categories/stop`: 중지 요청. 현재 모델 호출 후 종료.
 - GET `/api/dashboard/v2/categories?range=all&page=1&pageSize=50`: 기간/조직 분포, 정의, 질문별 메타데이터. division/team/position/category 지원. pageSize 최대1000. 카테고리 선택은 상세표/일별에 적용, 상단 총질문/분포는 선택 기간·조직 전체 유지.
 - 기존 `/overview`에 동일 snapshot과 기간의 분류 분포 연결. 조회는 모델을 호출하지 않음.
 
 공식 근거: https://docs.litellm.ai/docs/completion/json_mode — `/v1/chat/completions`, Bearer 인증과 response_format 지원은 모델별 확인 필요. 새 런타임 패키지는 없습니다. 아직 운영 업데이트 전체 워크플로/자동 예약/사람의 분류 수정 기능은 구현하지 않았습니다.
 
-로컬 검증: 백엔드 75개 / 프런트 26개 테스트, TypeScript/API 빌드 통과. 실제 모델 판정 정확도는 자동 계약 테스트로 보장하지 않습니다.
+로컬 검증: 백엔드 79개 / 프런트 26개 테스트, TypeScript/API 빌드 통과. 실제 모델 판정 정확도는 자동 계약 테스트로 보장하지 않습니다.

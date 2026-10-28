@@ -17,7 +17,7 @@ def main():
     token = sub.add_parser("token-sync")
     token.add_argument("--kind", choices=("full", "quick"), default="quick")
     category = sub.add_parser("category-classify")
-    category.add_argument("--kind", choices=("pending", "retry"), default="pending")
+    category.add_argument("--kind", choices=("pending", "sample", "retry"), default="pending")
     sub.add_parser("category-status")
     sub.add_parser("token-status")
     sub.add_parser("status")

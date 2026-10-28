@@ -39,7 +39,7 @@ class CategoryTests(unittest.TestCase):
     def tearDown(self):self.temp.cleanup()
     def write_csv(self,active='true',duplicate=False):
         with self.csv.open('w',encoding='utf-8-sig',newline='') as f:
-            w=csv.writer(f);w.writerow(['category','description','keywords','examples','active']);w.writerow(['문서/RAG','Documents, regulations and retrieval','document|rag','Find a document',active]);w.writerow(['번역','Translate text','translate','Translate this','true'])
+            w=csv.writer(f);w.writerow(['category','description','keywords','examples','active']);w.writerow(['문서/RAG','Documents, regulations and retrieval','document|rag','Find a document',active]);w.writerow(['번역','Translate text','translate','Translate this','true']);w.writerow(['기타','Other and uncertain requests','','','true'])
             if duplicate:w.writerow(['번역','duplicate','','','true'])
     def run_job(self,kind='pending',model=None,s=None,upstream=None):
         s=s or self.s;run=prepare(s,self.cache,self.store,kind)
@@ -47,7 +47,7 @@ class CategoryTests(unittest.TestCase):
     def usage(self,**kw):return category_usage(self.cache,self.s,range_value='all',**kw)
     def test_csv_bom_quoted_commas_disabled_and_validation(self):
         defs=taxonomy(self.csv);self.assertIn(',',defs[0]['description'])
-        self.write_csv(active='false');self.assertEqual(len(taxonomy(self.csv)),1)
+        self.write_csv(active='false');self.assertEqual(len(taxonomy(self.csv)),2)
         self.write_csv(duplicate=True)
         with self.assertRaises(ValueError):taxonomy(self.csv)
         self.write_csv(active='maybe')
@@ -66,11 +66,64 @@ class CategoryTests(unittest.TestCase):
         with self.assertRaises(RuntimeError) as error:self.run_job(model=FakeClassifier(fail_at=2))
         self.assertNotIn('PRIVATE',str(error.exception));self.assertEqual(self.usage()['summary']['classified'],1)
         self.run_job();self.assertEqual(self.usage()['summary']['classified'],3)
+    def test_one_click_all_exceeds_window_and_resumes_after_stop(self):
+        s=replace(self.s,category_max_questions=2)
+        self.run_job(s=s)
+        self.assertEqual(self.usage()['summary']['classified'],3)
+        run=self.store.status()['runs'][0]
+        self.assertEqual(run['total'],3);self.assertEqual(run['chunksDone'],2)
+        self.assertEqual(run['status'],'success')
+        # New profile, stop after a completed model batch, then pending resumes.
+        s=replace(s,category_revision='next')
+        store=self.store
+        class StopAfterOne(FakeClassifier):
+            def classify(self,inputs):
+                out=super().classify(inputs);store.request_stop();return out
+        r=self.run_job(s=s,model=StopAfterOne())
+        self.assertEqual(r['status'],'cancelled')
+        p=category_usage(self.cache,s,range_value='all')
+        self.assertEqual(p['summary']['classified'],1)
+        self.run_job(s=s)
+        self.assertEqual(category_usage(self.cache,s,range_value='all')['summary']['classified'],3)
+    def test_stop_http_authorization_and_no_active_job(self):
+        app=create_app(replace(self.s,dashboard_token='dashboard'),self.cache)
+        with TestClient(app) as client:
+            self.assertEqual(client.post('/api/dashboard/v2/categories/stop').status_code,401)
+            h={'Authorization':'Bearer dashboard'}
+            self.assertEqual(client.post('/api/dashboard/v2/categories/stop',headers=h).status_code,409)
+            run=prepare(self.s,self.cache,self.store)
+            self.assertEqual(client.post('/api/dashboard/v2/categories/stop',headers=h).status_code,202)
+            result=collect(self.s,self.cache,self.store,run,self.client,FakeClassifier())
+            self.assertEqual(result['status'],'cancelled');self.assertEqual(self.usage()['summary']['pending'],3)
+
+    def test_old_uncertain_results_show_as_other_without_inference(self):
+        from backend_v2.categories import profile
+        _,messages,_=self.cache.read();m=next(m for m in messages if m['id']=='q1')
+        run=prepare(self.s,self.cache,self.store)
+        self.store.progress(run,1,1,0,0,[(key(m),None,0.4,'uncertain',0)])
+        self.store.finish(run)
+        p=self.usage();r=next(r for r in p['detail']['records'] if r['id']=='q1')
+        self.assertEqual(r['category'],'기타');self.assertTrue(r['fallback'])
+        self.assertEqual(p['summary']['uncertain'],0)
+    def test_legacy_v2_job_schema_migration_preserves_decisions(self):
+        path=self.root/'v2-old.db'
+        with closing(sqlite3.connect(path)) as db:
+            db.executescript("PRAGMA application_id=1331127090; PRAGMA user_version=1; CREATE TABLE category_runs(id TEXT PRIMARY KEY,profile TEXT,kind TEXT,status TEXT,started_at TEXT,finished_at TEXT,error TEXT,processed INTEGER DEFAULT 0,calls INTEGER DEFAULT 0,reused INTEGER DEFAULT 0,unavailable INTEGER DEFAULT 0,expires REAL);")
+        # Set the actual recognized app ID explicitly, not a legacy Streamlit DB.
+        from backend_v2.category_store import APP_ID
+        with closing(sqlite3.connect(path)) as db:db.execute(f'PRAGMA application_id={APP_ID}');db.commit()
+        with closing(sqlite3.connect(path)) as db:
+            db.execute('CREATE TABLE decisions(profile TEXT,key TEXT,category TEXT,confidence REAL,state TEXT,truncated INTEGER,updated_at TEXT,PRIMARY KEY(profile,key))');db.execute("INSERT INTO decisions VALUES('synthetic','hash','기타',0.4,'fallback',0,'date')");db.commit()
+        migrated=CategoryStore(path)
+        self.assertEqual(migrated.read('synthetic')['hash']['category'],'기타')
+        with migrated.connect() as db:columns={r[1] for r in db.execute('PRAGMA table_info(category_runs)')}
+        self.assertTrue({'total','stop_requested','window_size'}<=columns)
+
     def test_budget_newest_pending_continue_without_full_resync(self):
         s=replace(self.s,category_max_questions=1)
-        self.run_job(s=s);self.assertEqual(self.usage()['summary']['classified'],1)
-        self.run_job(s=s);self.assertEqual(self.usage()['summary']['classified'],2)
-        self.run_job(s=s);self.assertEqual(self.usage()['summary']['classified'],3)
+        self.run_job(kind='sample',s=s);self.assertEqual(self.usage()['summary']['classified'],1)
+        self.run_job(kind='sample',s=s);self.assertEqual(self.usage()['summary']['classified'],2)
+        self.run_job(kind='sample',s=s);self.assertEqual(self.usage()['summary']['classified'],3)
     def test_profile_change_and_question_edit_not_mislabelled(self):
         self.run_job();old=profile(self.s,taxonomy(self.csv))
         self.write_csv(active='false');self.assertNotEqual(profile(self.s,taxonomy(self.csv)),old)
@@ -82,7 +135,7 @@ class CategoryTests(unittest.TestCase):
         p=category_usage(self.cache,s,range_value='all');self.assertEqual(p['summary']['classified'],2)
     def test_low_confidence_unclassified_retry_and_no_text(self):
         self.run_job(model=FakeClassifier(uncertain=True))
-        p=self.usage();self.assertEqual(p['summary']['uncertain'],3);self.assertEqual(p['summary']['classified'],0)
+        p=self.usage();self.assertEqual(p['summary']['uncertain'],0);self.assertEqual(p['summary']['classified'],3);self.assertTrue(all(r['category']=='기타' for r in p['detail']['records']))
         self.run_job(kind='retry');self.assertEqual(self.usage()['summary']['classified'],3)
         self.client.items[0]['content']=[{'type':'image_url','image_url':{'url':'PRIVATE'}}]
         Synchronizer(self.s,self.cache,self.client).run('full');self.run_job()
@@ -147,7 +200,7 @@ class CategoryTests(unittest.TestCase):
         self.assertEqual(p['detail']['total'],3)
         p=category_usage(self.cache,s,range_value='all',team='Extra');self.assertEqual(p['summary']['questions'],0)
     def test_overview_partial_unclassified_matches_questions(self):
-        self.run_job(s=replace(self.s,category_max_questions=1))
+        self.run_job(kind='sample',s=replace(self.s,category_max_questions=1))
         p=overview(self.cache,self.s,range_value='all');c=p['integrations']['categories']
         self.assertEqual(c['status'],'ready');self.assertEqual(c['classified'],1)
         self.assertEqual(sum(r['value'] for r in c['records']),p['summary']['questions'])

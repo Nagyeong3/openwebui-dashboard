@@ -224,3 +224,12 @@ Recommended validation cases:
 사용자 요청: 기존 category/description/keywords/examples/active CSV와 LiteLLM 경유 분류를 참고. 신규 코드: CSV 활성 정의로 batched chat completion, 엄격한 응답 검증, 해시/첨부여부/설정 버전별 별도 SQLite 결과 캐시, pending/retry 제한 배치와 비동기 상태, CLI, 카테고리 화면, 개요 분포 연결. 임베딩 대안보다 현재 CSV 의도 정의를 활용하는 LLM 방식을 우선 구현했으며 정확도 우위는 주장하지 않습니다. 분석 캐시 원문 미저장 정책 유지: 대상 질문을 분류할 때 API로 재조회하고 일치하는 해시만 사용합니다. 분류 DB에 원문/직원 ID/모델 응답 원문을 저장하지 않습니다. 실제 질문 본문은 사내 분류 모델 서버로 전송됩니다. 기존 legacy category_cache.db 자동이관 없음. 시행/제약/분류키 역할은 docs/CATEGORY_CLASSIFICATION_OFFLINE.md. 실제 모델/폐쇄망/브라우저 검수는 미완료.
 
 로컬 검증: 백엔드 75개 / 프런트 26개 테스트, TypeScript 및 API 모드 빌드 통과. 합성 데이터 기준이며 실제 LiteLLM 모델 정확도/브라우저 시각 검수는 미완료.
+
+
+## 2026-10-28 전체 미처리 자동 분류 / 기타 처리 정책
+
+사용자 요청 반영: 기간 선택과 무관하게 pending 한 번 실행으로 시작 snapshot의 전체 미처리 질문을 처리합니다. CATEGORY_LLM_MAX_QUESTIONS는 이제 내부 체크포인트 구간(기본200), 모델 배치는 기본5. 사용자의 API 페이지를 구간별로 반복 조회하지 않고 사용자별 한 번 순회합니다. 소량 확인은 kind=sample 최대min(20,구간크기). 진행 총건수/건수와 중지 API/버튼 추가, 중지·실패 후 pending으로 이어 처리. 실행 도중 생긴 새 질문은 다음 OWUI 동기화 후 처리합니다. 원본 해시 변동/조회 불가 질문은 일부 미완료로 표시하고 full 완료로 속이지 않습니다. v2 분류 DB에 작업 총건수/중지필드만 추가하며 기존 결과 보존.
+
+낮은 모델 자기평가 점수/null 판정은 활성 기타로 처리합니다. 기존 uncertain 결과도 동일 프로필 조회에서 기타로 집계하며 모델 재호출이나 전체 프로필 무효화는 하지 않습니다. 판정 점수/기타 fallback 여부 보존. API 실패/잘못된 JSON은 기타에 숨기지 않고 작업 실패, 텍스트 없는 질문은 여전히 미분류. 기존 제공 question_categories.csv 그대로 호환되며 기타는 활성 상태여야 합니다. 운영 업데이트 페이지는 아직 디자인 검토 단계이며 구현했다고 설명하지 않습니다.
+
+로컬 검증: 백엔드79/프런트26 테스트 통과, API 빌드 성공. 실제 모델/Windows 브라우저 검수는 미완료. 운영 페이지의 fetch/실패 정책 제안은 docs/OPERATIONS_UPDATE_DESIGN.md.

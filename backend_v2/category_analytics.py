@@ -32,6 +32,9 @@ def category_usage(cache, settings, *, start=None,end=None,range_value='7d',divi
         r = results.get(key(m))
         cat = r['category'] if r and r['category'] else UNCLASSIFIED
         state = r['state'] if r else 'pending'
+        fallback = state in ('uncertain','fallback') and '기타' in dist
+        if fallback:
+            cat, state = '기타', 'classified'
         total+=1; states[state]+=1; dist[cat]+=1
         truncated+=int(bool(r and r['truncated']))
         date = datetime.fromtimestamp(m['created_at'],SEOUL).date().isoformat()
@@ -39,7 +42,7 @@ def category_usage(cache, settings, *, start=None,end=None,range_value='7d',divi
             continue
         daily[date]+=1
         u = selected[m['user_id']]
-        rows.append({'id':m['id'],'at':m['created_at'],'userName':u['name'],'division':u['division'],'team':u['team'],'category':cat,'state':state,'confidence':r['confidence'] if r else None,'truncated':bool(r and r['truncated'])})
+        rows.append({'id':m['id'],'at':m['created_at'],'userName':u['name'],'division':u['division'],'team':u['team'],'category':cat,'state':state,'fallback':fallback,'confidence':r['confidence'] if r else None,'truncated':bool(r and r['truncated'])})
     records = [{'name':name,'value':n,'percent':round(n/total*100,1) if total else 0} for name,n in sorted(dist.items(),key=lambda p:(-p[1],p[0]))]
     return {'schemaVersion':1,'source':'category-llm-cache','period':{'start':str(a) if a else None,'end':str(b) if b else None,'timezone':'Asia/Seoul'},'updatedAt':meta['last_success'],
             'summary':{'questions':total,'classified':states['classified'],'pending':states['pending'],'uncertain':states['uncertain'],'noText':states['no-text'],'truncated':truncated,'coveragePercent':round(states['classified']/total*100,1) if total else 0},

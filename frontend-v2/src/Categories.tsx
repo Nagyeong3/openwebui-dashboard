@@ -6,15 +6,15 @@ import { number } from './domain';
 import { periodParams, type Query, type Payload } from './live-api';
 
 export type CategorySlice = {name:string;value:number;percent:number};
-type Run = {id:string;status:string;processed:number;calls:number;reused:number;unavailable:number;error:string|null};
-type Status = {configured:boolean;configurationError:string|null;batchLimit:number;activeRunId:string|null;runs:Run[]};
+type Run = {id:string;status:string;processed:number;calls:number;reused:number;unavailable:number;total:number;stop_requested:number;chunksDone:number;window_size:number;error:string|null};
+type Status = {configured:boolean;configurationError:string|null;batchLimit:number;sampleLimit:number;activeRunId:string|null;runs:Run[]};
 type CategoryPayload = {
   schemaVersion:1; source:'category-llm-cache'; period:Payload['period'];
   summary:{questions:number;classified:number;pending:number;uncertain:number;noText:number;truncated:number;coveragePercent:number};
   distribution:CategorySlice[];
   filters:{divisions:string[];teams:string[];positions:string[];categories:string[]};
   definitions:{category:string;description:string}[];
-  detail:{total:number;page:number;pageSize:number;records:{id:string;at:number;userName:string;team:string;category:string;state:string;confidence:number|null;truncated:boolean}[]};
+  detail:{total:number;page:number;pageSize:number;records:{id:string;at:number;userName:string;team:string;category:string;state:string;confidence:number|null;fallback?:boolean;truncated:boolean}[]};
 };
 export function validateCategories(value:unknown): asserts value is CategoryPayload {
   const d=value as CategoryPayload;
@@ -61,7 +61,7 @@ export default function Categories({q,token,revision,dark,onChange,onPeriod}:{q:
     }
     void poll();return()=>{c.abort();clearTimeout(timer);};
   },[token,revision,tick]);
-  async function run(kind:'pending'|'retry'){
+  async function run(kind:'pending'|'sample'|'retry'){
     setStarting(true);setActionError('');
     try{const r=await request('/api/dashboard/v2/categories/classify?kind='+kind,{method:'POST',headers});lastActive.current=r.runId;setTick(t=>t+1);}
     catch(e){setActionError(e instanceof Error?e.message:'분류 시작 실패');}
@@ -72,12 +72,14 @@ export default function Categories({q,token,revision,dark,onChange,onPeriod}:{q:
   return <div>
     <Panel title="질문 분류" subtitle="CSV 정의와 질문 의도를 기준으로 분류합니다.">
       <div className="table-toolbar"><div className="table-controls">
-        <button className="button primary" disabled={busy||!status?.configured} onClick={()=>void run('pending')}>{busy?<Loader2 size={16} className="spinning"/>:<Play size={16}/>} {busy?'분류 중':`미처리 질문 분류 · 최대 ${status?.batchLimit??200}개`}</button>
-        <button className="button" disabled={busy||!status?.configured} onClick={()=>void run('retry')}><RefreshCw size={15}/>검토 필요 재시도</button>
+        <button className="button primary" disabled={busy||!status?.configured} onClick={()=>void run('pending')}>{busy?<Loader2 size={16} className="spinning"/>:<Play size={16}/>} {busy?'전체 분류 중':'전체 미처리 질문 분류'}</button>
+        <button className="button" disabled={busy||!status?.configured} onClick={()=>void run('sample')}><Play size={15}/>소량 테스트 ({status?.sampleLimit??20}개)</button>
+        {status?.activeRunId&&<button className="button" disabled={!!status.runs[0]?.stop_requested} onClick={async()=>{try{await request('/api/dashboard/v2/categories/stop',{method:'POST',headers});setTick(t=>t+1);}catch(e){setActionError(e instanceof Error?e.message:'중지 요청 실패');}}}>{status.runs[0]?.stop_requested?'중지 요청됨':'중지'}</button>}
       </div></div>
-      <p className="live-note">분류 작업은 전체 기간의 미처리 질문을 최근순으로 처리합니다. 아래 기간·조직 필터는 조회에 적용됩니다.</p>
+      <p className="live-note">분류 작업은 전체 기간의 미처리 질문을 자동으로 이어 처리합니다. 기간·조직 필터는 조회에 적용됩니다.</p>
       {status&&!status.configured&&<p className="live-warning">{status.configurationError} · 서버 .env 설정 후 재시작하세요.</p>}
-      {latest&&<p role="status" className="live-note">{latest.status==='running'?'진행 중':latest.status==='success'?'완료':latest.status==='interrupted'?'중단됨':'실패'} · 처리 {number(latest.processed)}건 · 모델 호출 {number(latest.calls)}회 · 결과 재사용 {number(latest.reused)}건 {latest.unavailable>0?`· 원본 확인 필요 ${latest.unavailable}건`:''}</p>}
+      {latest&&<p role="status" className="live-note">{latest.status==='running'?'진행 중':latest.status==='success'?'완료':latest.status==='partial'?'일부 미완료':['interrupted','cancelled'].includes(latest.status)?'중단됨':'실패'} · 처리 {number(latest.processed)} / {number(latest.total)}건 · 모델 호출 {number(latest.calls)}회 · 결과 재사용 {number(latest.reused)}건 {latest.unavailable>0?`· 원본 확인 필요 ${latest.unavailable}건`:''}</p>}
+      {latest&&latest.total>0&&<progress className="category-progress" aria-label="전체 질문 분류 진행률" value={latest.processed+latest.unavailable} max={latest.total}/> }
       {(actionError||latest?.error)&&<p className="live-warning" role="alert">{actionError||latest?.error}</p>}
     </Panel>
     {error?<div className="error-state" role="alert"><h2>질문 분류 현황을 불러올 수 없습니다</h2><p>{error}</p></div>:!data?<div className="live-loading"><Loader2 className="spinning"/>분류 현황을 불러오는 중입니다.</div>:<>
@@ -93,9 +95,9 @@ export default function Categories({q,token,revision,dark,onChange,onPeriod}:{q:
           <CategoryDistribution rows={data.distribution} dark={dark} table={table}/>
           <div className="overview-panel-footer"><span>미분류 {number(data.summary.pending+data.summary.uncertain+data.summary.noText)}건</span><div className="table-controls"><button className={'button '+(table?'primary':'')} onClick={()=>setTable(true)} aria-pressed={table}>표</button><button className={'button '+(!table?'primary':'')} onClick={()=>setTable(false)} aria-pressed={!table}>그래프</button></div></div>
         </Panel>
-        <Panel title="분류 기준"><div className="category-definitions">{data.definitions.map(d=><article key={d.category}><strong>{d.category}</strong><p className="muted">{d.description}</p></article>)}</div><p className="live-note">검토 필요 {number(data.summary.uncertain)}건 · 텍스트 없음 {number(data.summary.noText)}건 · 긴 질문 일부 사용 {number(data.summary.truncated)}건</p></Panel>
+        <Panel title="분류 기준"><div className="category-definitions">{data.definitions.map(d=><article key={d.category}><strong>{d.category}</strong><p className="muted">{d.description}</p></article>)}</div><p className="live-note">판단이 애매한 질문은 기타에 포함 · 텍스트 없음 {number(data.summary.noText)}건 · 긴 질문 일부 사용 {number(data.summary.truncated)}건</p></Panel>
       </div>
-      <Panel title="질문별 분류 결과" subtitle="질문 원문은 저장하거나 표시하지 않습니다."><div className="overview-table-scroll"><table><thead><tr><th>질문 시각</th><th>사용자</th><th>팀</th><th>카테고리</th><th>처리 상태</th><th>모델 판단 점수</th></tr></thead><tbody>{data.detail.records.map(r=><tr key={r.id}><td>{new Date(r.at*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})}</td><td>{r.userName}</td><td>{r.team}</td><td>{r.category}</td><td>{stateLabel[r.state]||r.state}{r.truncated?' · 일부 텍스트':''}</td><td>{r.confidence===null?'—':r.confidence.toFixed(2)}</td></tr>)}</tbody></table>{!data.detail.records.length&&<p className="muted">선택 조건의 질문이 없습니다.</p>}</div><div className="table-footer"><span>전체 {number(data.detail.total)}건</span><div className="table-controls"><button className="button" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>이전</button><span>{page} / {Math.max(1,Math.ceil(data.detail.total/50))}</span><button className="button" disabled={page*50>=data.detail.total} onClick={()=>setPage(p=>p+1)}>다음</button></div></div></Panel>
+      <Panel title="질문별 분류 결과" subtitle="질문 원문은 저장하거나 표시하지 않습니다."><div className="overview-table-scroll"><table><thead><tr><th>질문 시각</th><th>사용자</th><th>팀</th><th>카테고리</th><th>처리 상태</th><th>모델 판단 점수</th></tr></thead><tbody>{data.detail.records.map(r=><tr key={r.id}><td>{new Date(r.at*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})}</td><td>{r.userName}</td><td>{r.team}</td><td>{r.category}</td><td>{r.fallback?'기타 처리':stateLabel[r.state]||r.state}{r.truncated?' · 일부 텍스트':''}</td><td>{r.confidence===null?'—':r.confidence.toFixed(2)}</td></tr>)}</tbody></table>{!data.detail.records.length&&<p className="muted">선택 조건의 질문이 없습니다.</p>}</div><div className="table-footer"><span>전체 {number(data.detail.total)}건</span><div className="table-controls"><button className="button" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>이전</button><span>{page} / {Math.max(1,Math.ceil(data.detail.total/50))}</span><button className="button" disabled={page*50>=data.detail.total} onClick={()=>setPage(p=>p+1)}>다음</button></div></div></Panel>
     </>}
   </div>;
 }

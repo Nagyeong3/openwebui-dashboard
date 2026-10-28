@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS decisions(profile TEXT,key TEXT,category TEXT,confide
 CREATE TABLE IF NOT EXISTS category_runs(id TEXT PRIMARY KEY,profile TEXT,kind TEXT,status TEXT,started_at TEXT,finished_at TEXT,error TEXT,processed INTEGER DEFAULT 0,calls INTEGER DEFAULT 0,reused INTEGER DEFAULT 0,unavailable INTEGER DEFAULT 0,expires REAL);
 PRAGMA user_version=1;''')
             db.execute(f'PRAGMA application_id={APP_ID}')
+            # Add progress/cancellation metadata to recognized v2 databases only.
+            columns = {r[1] for r in db.execute('PRAGMA table_info(category_runs)')}
+            for name, declaration in (('total','INTEGER DEFAULT 0'),('stop_requested','INTEGER DEFAULT 0'),('window_size','INTEGER DEFAULT 200')):
+                if name not in columns:
+                    db.execute(f'ALTER TABLE category_runs ADD COLUMN {name} {declaration}')
 
     def read(self, profile):
         with self.connect() as db:
@@ -41,16 +46,18 @@ PRAGMA user_version=1;''')
                 r['status']='interrupted'
             del r['expires']
             del r['profile']
+            done = r['processed'] + r['unavailable']
+            r['chunksDone'] = (done + r['window_size'] - 1)//r['window_size'] if r['status'] in ('success','partial') else done//r['window_size']
         return {'activeRunId': next((r['id'] for r in runs if r['status']=='running'),None), 'runs':runs}
 
-    def start(self, profile, kind):
+    def start(self, profile, kind, window_size=200):
         run = uuid.uuid4().hex
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             if db.execute("SELECT 1 FROM category_runs WHERE status='running' AND expires>?",(time.time(),)).fetchone():
                 raise BusyError('Category classification is already running')
             db.execute("UPDATE category_runs SET status='interrupted',finished_at=?,error='Previous classification interrupted' WHERE status='running'",(now_iso(),))
-            db.execute("INSERT INTO category_runs(id,profile,kind,status,started_at,expires) VALUES(?,?,?,'running',?,?)",(run,profile,kind,now_iso(),time.time()+600))
+            db.execute("INSERT INTO category_runs(id,profile,kind,status,started_at,expires,window_size) VALUES(?,?,?,'running',?,?,?)",(run,profile,kind,now_iso(),time.time()+600,window_size))
         return run
 
     def progress(self, run, processed, calls, reused, unavailable, decisions=()):
@@ -62,6 +69,28 @@ PRAGMA user_version=1;''')
             db.executemany('INSERT OR REPLACE INTO decisions VALUES(?,?,?,?,?,?,?)',[(job['profile'],*d,now_iso()) for d in decisions])
             db.execute('UPDATE category_runs SET processed=?,calls=?,reused=?,unavailable=?,expires=? WHERE id=?',(processed,calls,reused,unavailable,time.time()+600,run))
 
-    def finish(self, run, error=None):
+    def set_total(self, run, total):
         with self.connect() as db:
-            db.execute("UPDATE category_runs SET status=?,finished_at=?,error=?,expires=0 WHERE id=? AND status='running'",('failed' if error else 'success',now_iso(),error,run))
+            db.execute("UPDATE category_runs SET total=? WHERE id=? AND status='running'",(total,run))
+
+    def stopped(self, run):
+        with self.connect() as db:
+            r = db.execute("SELECT stop_requested FROM category_runs WHERE id=?",(run,)).fetchone()
+            return bool(r and r[0])
+
+    def request_stop(self):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            r = db.execute("SELECT id FROM category_runs WHERE status='running' AND expires>?",(time.time(),)).fetchone()
+            if not r:
+                raise BusyError('No active category classification')
+            db.execute('UPDATE category_runs SET stop_requested=1 WHERE id=?',(r[0],))
+            return r[0]
+
+    def cancel(self, run):
+        with self.connect() as db:
+            db.execute("UPDATE category_runs SET status='cancelled',finished_at=?,expires=0 WHERE id=? AND status='running'",(now_iso(),run))
+
+    def finish(self, run, error=None, status="success"):
+        with self.connect() as db:
+            db.execute("UPDATE category_runs SET status=?,finished_at=?,error=?,expires=0 WHERE id=? AND status='running'",('failed' if error else status,now_iso(),error,run))

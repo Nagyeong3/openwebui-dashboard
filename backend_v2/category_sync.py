@@ -6,12 +6,18 @@ from .categories import taxonomy, profile, Classifier, text_content
 from .category_store import key
 
 
+class Stopped(Exception):
+    pass
+
+
 def configuration(settings):
     definitions = taxonomy(settings.category_csv)
     if not (settings.category_url or settings.litellm_url) or not settings.category_key or not settings.category_model:
         raise ValueError('Set CATEGORY_LITELLM_API_KEY, CATEGORY_LLM_MODEL and category/LiteLLM base URL')
     if not settings.base_url or not settings.api_token:
         raise ValueError('OpenWebUI API credentials are required to read question text')
+    if '기타' not in {d['category'] for d in definitions}:
+        raise ValueError('An active 기타 category is required for uncertain answers')
     return definitions, profile(settings, definitions)
 
 
@@ -28,11 +34,11 @@ def digest_url(url):
 
 
 def prepare(settings, cache, store, kind='pending'):
-    if kind not in ('pending','retry'):
-        raise ValueError('Category kind must be pending or retry')
+    if kind not in ('pending','sample','retry'):
+        raise ValueError('Category kind must be pending, sample or retry')
     definitions, version = configuration(settings)
     snapshot(cache, settings)
-    return store.start(version, kind)
+    return store.start(version, kind, settings.category_max_questions)
 
 
 def collect(settings, cache, store, run, upstream=None, classifier=None):
@@ -45,11 +51,13 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
         _, messages, _ = snapshot(cache, settings)
         results = store.read(version)
         targets = [m for m in messages if m['role']=='user' and
-                   (key(m) not in results if job['kind']=='pending' else
-                    key(m) in results and results[key(m)]['state']=='uncertain')]
+                   (key(m) not in results if job['kind'] in ('pending','sample') else
+                    key(m) in results and results[key(m)]['state'] in ('uncertain','fallback'))]
         # Bounded work, newest first. Already valid hashes never require API reads.
         targets.sort(key=lambda m:(-m['created_at'],m['id']))
-        targets = targets[:settings.category_max_questions]
+        if job['kind']=='sample':
+            targets = targets[:min(20,settings.category_max_questions)]
+        store.set_total(run,len(targets))
         groups = defaultdict(dict)
         for m in targets:
             groups[m['user_id']][m['id']] = m
@@ -59,6 +67,10 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
         batch = []
         completed_keys = set()
 
+        def check_stop():
+            if store.stopped(run):
+                raise Stopped()
+
         def progress(decisions=()):
             store.progress(run,processed,calls,reused,unavailable,decisions)
 
@@ -66,6 +78,7 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
             nonlocal processed, calls
             if not batch:
                 return
+            check_stop()
             progress()
             inputs = [{'id':f'Q{i}','text':q[1], 'hasAttachments':bool(q[0]['has_files'])} for i,q in enumerate(batch)]
             out = model.classify(inputs)
@@ -77,7 +90,9 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
             for i,(message,text,truncated) in enumerate(batch):
                 cat, confidence = out[f'Q{i}']
                 k = key(message)
-                row = (k,cat,confidence,'classified' if cat else 'uncertain',int(truncated))
+                state = 'classified' if cat else 'fallback'
+                cat = cat or '기타'
+                row = (k,cat,confidence,state,int(truncated))
                 decisions.append(row)
                 results[k] = {'category':cat,'state':row[3]}
                 completed_keys.add(k)
@@ -87,9 +102,11 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
             batch.clear()
 
         for uid, wanted in groups.items():
+            check_stop()
             seen = set()
             previous = float('inf')
             for page in range(settings.max_pages_per_user):
+                check_stop()
                 progress()
                 items = client.messages(uid,page*settings.page_size)
                 for raw in items:
@@ -105,7 +122,7 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
                         unavailable += 1
                         continue
                     k = key(m)
-                    if (k in results and job['kind']=='pending') or k in completed_keys:
+                    if (k in results and job['kind'] in ('pending','sample')) or k in completed_keys:
                         reused+=1; processed+=1; progress(); continue
                     if any(key(q[0])==k for q in batch):
                         flush()
@@ -117,7 +134,7 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
                         progress([(k,None,None,'no-text',0)])
                         continue
                     batch.append((m,text[:settings.category_max_chars],len(text)>settings.category_max_chars))
-                    if len(batch)>=settings.category_batch_size:
+                    if len(batch)>=settings.category_batch_size or (processed+unavailable+len(batch)) % job['window_size'] == 0:
                         flush()
                 if not wanted or len(items)<settings.page_size:
                     break
@@ -126,8 +143,14 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
             unavailable += len(wanted)
             flush()
             progress()
-        store.finish(run)
+        if store.stopped(run):
+            store.cancel(run)
+            return {'ok':True,'runId':run,'status':'cancelled','processed':processed}
+        store.finish(run,status='partial' if unavailable else 'success')
         return {'ok':True,'runId':run,'processed':processed,'calls':calls,'reused':reused,'unavailable':unavailable}
+    except Stopped:
+        store.cancel(run)
+        return {'ok':True,'runId':run,'status':'cancelled','processed':processed}
     except Exception as e:
         safe = str(e) if isinstance(e,(UpstreamError,ValueError)) else 'Category classification failed; completed batches preserved'
         store.finish(run,safe)
