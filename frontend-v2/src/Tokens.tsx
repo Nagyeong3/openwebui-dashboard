@@ -335,8 +335,7 @@ export default function Tokens({
       </section>
       {status && !status.configured && (
         <p className="live-warning">
-          .env에 LiteLLM 주소·조회 키·저장할 키 별칭·최초 수집 시작일을
-          설정하세요. 설정 후 서버를 재시작하세요.
+          사용량 연결 설정을 확인하세요. 설정 후 서버를 재시작하세요.
         </p>
       )}
       {run && (
@@ -440,8 +439,8 @@ export default function Tokens({
                 <strong className="pending-value">{n}</strong>
                 <div className="metric-note">
                   {label === "추정 비용 (USD)"
-                    ? "로그 spend 우선 · 누락 시 가격표 추정"
-                    : "LiteLLM 로그 기준"}
+                    ? "USD"
+                    : "토큰"}
                 </div>
               </article>
             ))}
@@ -518,7 +517,7 @@ export default function Tokens({
                 )}
               </div>
               <div className="overview-panel-footer">
-                <span>값 없음은 실제 0과 구분</span>
+                <span></span>
                 <Toggle
                   label="토큰 사용 추이"
                   mode={graph}
@@ -570,7 +569,7 @@ export default function Tokens({
                 )}
               </div>
               <div className="overview-panel-footer">
-                <span>미식별 사용량은 전체 합계에 포함</span>
+                <span></span>
                 <Toggle
                   label="토큰 Top10"
                   mode={rankingGraph}

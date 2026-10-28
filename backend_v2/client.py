@@ -121,3 +121,9 @@ class OpenWebUIClient:
         if not isinstance(result, list) or len(result) > self.settings.page_size:
             raise ContractError("Expected paged analytics/messages array")
         return result
+
+    def chat_messages(self, chat_id):
+        result=self._get('/api/v1/analytics/messages',{'chat_id':chat_id})
+        if not isinstance(result,list):
+            raise ContractError('질문 응답 형식이 올바르지 않습니다.')
+        return result

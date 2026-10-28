@@ -27,3 +27,12 @@ Read `docs/MAINTENANCE_HANDOFF.md` before changing this repository.
 4. Record validated fixes and remaining uncertainty in the maintenance handoff.
 5. Validate API transport status separately from the JSON payload's `ok` field.
 
+
+## UI conventions (user confirmed 2026-10-28)
+
+- Use plain Korean user-facing copy. Do not put developer instructions, implementation details or future-development notices in normal screens. Put technical setup instructions in docs.
+- The operations primary action is exactly 업데이트. No permanent refresh button on that screen; retry loading only after a fetch error.
+- All visible text and chart fonts must be at least 14px (above 10pt). Reflow the layout rather than shrinking labels.
+- Category charts place the chart on the left and the complete legend on the right, with no legend paging. Stack on narrow screens.
+- No dashboard token control in the top bar. Retain configured server authentication via the separate optional login gate.
+- Do not add execution-history export.

@@ -1,3 +1,5 @@
+2026-10-28 후속: 일시 중단/계속하기/중단·단계 선택·실패 항목 재시도·분류 직접 수정·인증 화면 변경은 [CONTROLS_AND_REVIEW_OFFLINE.md](CONTROLS_AND_REVIEW_OFFLINE.md)를 우선 참고하세요.
+
 # 질문 카테고리 분류 — 폐쇄망 설정과 검수
 
 2026-10-28 신규 구현. 사용자 보고로 LiteLLM 토큰 수집 정상은 확인했습니다. **분류 모델의 실제 서버 호출과 정확도, 현장 화면 검수는 별도로 필요합니다.** 운영 소스의 복원본이 아닌 v2 기능입니다.
@@ -47,7 +49,7 @@ cd /d D:\project\oui-dashboard-v2
 python -m uvicorn backend_v2.app:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
-브라우저 `http://localhost:8011/?screen=categories`에서 Ctrl+F5 후 **소량 테스트 (20개)**를 먼저 누릅니다. 인증을 설정했다면 상단 대시보드 인증 설정을 입력합니다. HTTP 202는 접수이며 완료가 아닙니다. 진행 표시가 완료로 바뀌는지 확인합니다.
+브라우저 `http://localhost:8011/?screen=categories`에서 Ctrl+F5 후 **소량 테스트 (20개)**를 먼저 누릅니다. 인증을 설정했다면 별도 로그인 화면에 기존 접속 암호를 입력합니다. HTTP 202는 접수이며 완료가 아닙니다. 진행 표시가 완료로 바뀌는지 확인합니다.
 
 별도 CMD로 실행하려면 웹 버튼과 동시에 실행하지 말고:
 

@@ -8,6 +8,7 @@ import time
 from .cache import Cache, now_iso
 from .client import ContractError, OpenWebUIClient, UpstreamError
 from .settings import Settings
+from .control import JobPaused, JobCancelled
 
 
 def timestamp(value):
@@ -87,7 +88,8 @@ def normalize_message(message, owner):
 
 
 class Synchronizer:
-    def __init__(self, settings: Settings, cache: Cache, client=None):
+    def __init__(self, settings: Settings, cache: Cache, client=None, check=None):
+        self.check = check or (lambda: None)
         self.settings, self.cache = settings, cache
         self.client = client or OpenWebUIClient(settings)
         self.source = hashlib.sha256(settings.base_url.rstrip("/").encode()).hexdigest()
@@ -162,6 +164,7 @@ class Synchronizer:
                 raise ContractError(
                     "User roster changed during sync; retry synchronization"
                 )
+            self.check()
             self.cache.publish(run_id, self.source, collected_at)
             return {
                 "ok": True,
@@ -170,6 +173,11 @@ class Synchronizer:
                 "users": len(users),
                 "messages": count,
             }
+        except (JobPaused, JobCancelled) as signal:
+            self.cache.fail(run_id, '작업이 일시 중단되었습니다.' if isinstance(signal, JobPaused) else '작업이 중단되었습니다.')
+            with self.cache.connect() as db:
+                db.execute('UPDATE runs SET status=? WHERE id=?', ('paused' if isinstance(signal,JobPaused) else 'cancelled',run_id))
+            raise
         except Exception as error:
             safe = (
                 str(error)

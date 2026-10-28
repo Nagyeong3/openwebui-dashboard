@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from .analytics import date_value
 from .client import OpenWebUIClient, ContractError, UpstreamError
 from .token_store import TokenStore
+from .control import JobPaused, JobCancelled
 
 
 def numeric(value, integer=False):
@@ -178,7 +179,8 @@ def prepare(settings, store, kind="quick"):
     return store.start(settings, kind, start, end)
 
 
-def collect(settings, store, run, client=None):
+def collect(settings, store, run, client=None, check=None):
+    check = check or (lambda: None)
     try:
         client = client or SpendClient(settings)
         job = next(r for r in store.status()["runs"] if r["id"] == run)
@@ -229,7 +231,13 @@ def collect(settings, store, run, client=None):
                 stop  # overlap the inclusive boundary; ID upsert removes duplicates.
             )
         store.stage(run, [], scanned, skipped, pages)
+        check()
         store.publish(settings, run)
+    except (JobPaused, JobCancelled) as signal:
+        store.fail(run, '작업이 일시 중단되었습니다.' if isinstance(signal,JobPaused) else '작업이 중단되었습니다.')
+        with store.connect() as db:
+            db.execute('UPDATE token_runs SET status=? WHERE id=?',('paused' if isinstance(signal,JobPaused) else 'cancelled',run))
+        raise
     except Exception as error:
         message = (
             str(error)

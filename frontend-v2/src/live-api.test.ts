@@ -390,14 +390,32 @@ test('actual live sidebar opens operations with an enabled active menu and no pe
   try{
     const React=await import('react');
     const {renderToStaticMarkup}=await import('react-dom/server');
-    const {default:LiveApp}=await import('./LiveApp');
+    const {Dashboard:LiveApp}=await import('./LiveApp');
     const html=renderToStaticMarkup(React.createElement(LiveApp));
     const menu=[...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].find(m=>m[2].includes('<span>운영 업데이트</span>'));
     assert.ok(menu);assert.match(menu[1],/aria-current="page"/);assert.doesNotMatch(menu[1],/disabled/);
     assert.doesNotMatch(html,/조회 기간:/);
+    assert.doesNotMatch(html,/대시보드 인증 설정|대시보드 토큰/);
+    assert.doesNotMatch(html,/>새로고침</);
     assert.match(html,/<h1>운영 업데이트<\/h1>/);
   }finally{
     if(savedLocation)Object.defineProperty(globalThis,'location',savedLocation);else Reflect.deleteProperty(globalThis,'location');
     if(savedStorage)Object.defineProperty(globalThis,'localStorage',savedStorage);else Reflect.deleteProperty(globalThis,'localStorage');
   }
+});
+
+test('category graph shows every label beside the chart without legend pagination',async()=>{
+  const React=await import('react');const {renderToStaticMarkup}=await import('react-dom/server');
+  const {CategoryDistribution,categoryDonut}=await import('./Categories');
+  const rows=Array.from({length:10},(_,i)=>({name:'분류'+i,value:i+1,percent:10}));
+  const html=renderToStaticMarkup(React.createElement(CategoryDistribution,{rows,dark:false,table:false}));
+  for(const r of rows)assert.ok(html.includes(r.name));
+  assert.match(html,/category-legend/);assert.equal((categoryDonut(rows,false) as Record<string,unknown>).legend,undefined);
+  assert.equal((html.match(/<li/g)||[]).length,10);
+});
+
+test('operations accepts paused jobs as resumable and sidebar has no token settings',async()=>{
+  const {validateOperations}=await import('./Operations');
+  const p={schemaVersion:1,activeRunId:'paused',sources:{openwebui:{},tokens:{},categories:{}},overlap:{openwebuiDays:7,litellmHours:24},runs:[{id:'paused',kind:'quick',status:'paused',steps:[{name:'openwebui',status:'paused',stats:{}},{name:'tokens',status:'waiting',stats:{}},{name:'categories',status:'waiting',stats:{}}]}]};
+  assert.doesNotThrow(()=>validateOperations(p));
 });

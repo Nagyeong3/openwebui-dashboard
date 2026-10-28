@@ -1,3 +1,5 @@
+2026-10-28 후속: [작업 제어·분류 확인·화면 변경](../docs/CONTROLS_AND_REVIEW_OFFLINE.md).
+
 2026-10-28: 운영 업데이트 메뉴와 실제 통합 실행을 연결했습니다. [반입/사용법](../docs/OPERATIONS_UPDATE_OFFLINE.md).
 
 2026-10-28: CSV 기반 LiteLLM 질문 분류·캐시·화면·개요 연결 신규 구현. [폐쇄망 설정/검수](../docs/CATEGORY_CLASSIFICATION_OFFLINE.md). 실제 모델 정확도 및 현장 연동은 검수 필요.

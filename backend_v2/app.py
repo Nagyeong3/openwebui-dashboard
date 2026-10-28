@@ -3,7 +3,7 @@ import csv
 import io
 import re
 from pathlib import Path
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
@@ -25,13 +25,17 @@ def create_app(settings=None, cache=None):
             CORSMiddleware,
             allow_origins=origins,
             allow_methods=["GET", "POST"],
-            allow_headers=["Authorization"],
+            allow_headers=["Authorization", "Content-Type"],
+            allow_credentials=True,
         )
 
-    def authorized(authorization: str | None = Header(None)):
-        if settings.dashboard_token and not hmac.compare_digest(
-            authorization or "", "Bearer " + settings.dashboard_token
-        ):
+    from .auth import attach as attach_auth, valid_cookie, COOKIE
+    attach_auth(app,settings)
+
+    def authorized(request: Request, authorization: str | None = Header(None)):
+        if settings.dashboard_token and not (hmac.compare_digest(
+            (authorization or "").encode(), ("Bearer " + settings.dashboard_token).encode()
+        ) or valid_cookie(settings,request.cookies.get(COOKIE))):
             raise HTTPException(401, "Dashboard authentication required")
 
     @app.get("/api/dashboard/v2/health", dependencies=[Depends(authorized)])

@@ -10,15 +10,11 @@ import {
   Layers3,
   LayoutDashboard,
   Tags,
-  Cpu,
   Coins,
-  HeartPulse,
-  ClipboardList,
   Loader2,
   Menu,
   Moon,
   RefreshCw,
-  Settings2,
   Sun,
   Users,
   X,
@@ -52,6 +48,7 @@ import Overview from "./Overview";
 import Tokens from "./Tokens";
 import Categories from "./Categories";
 import Operations from "./Operations";
+import AuthGate from "./AuthGate";
 import PeriodPicker from "./PeriodPicker";
 
 const ALL = "전체";
@@ -61,7 +58,9 @@ const dateTime = (s: string | null) =>
     : "사용 기록 없음";
 const apiBase = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
-export default function LiveApp() {
+export default function LiveApp(){ return <AuthGate><Dashboard/></AuthGate>; }
+
+export function Dashboard() {
   const [q, setQ] = useState<Query>(() =>
     userQuery(readQuery(location.search)),
   );
@@ -77,9 +76,7 @@ export default function LiveApp() {
   );
   const [mobile, setMobile] = useState(false),
     [revision, refresh] = useState(0);
-  const [token, setToken] = useState(""),
-    [credential, setCredential] = useState(""),
-    [auth, setAuth] = useState(false);
+  const token = "";
   const [search, setSearch] = useState(q.search),
     [drawer, setDrawer] = useState<Person | null>(null);
   const [exporting, setExporting] = useState(false),
@@ -257,45 +254,12 @@ export default function LiveApp() {
               <span>토큰 사용량</span>
             </button>
             <button className={"nav-item " + (screen === "categories" ? "active" : "")} aria-current={screen === "categories" ? "page" : undefined} onClick={() => navigate("categories")}><Tags size={18}/><span>질문 카테고리 분류</span></button>
-            {[
-              ["모델별 현황", Cpu],
-            ].map(([name, Icon]) => {
-              const I = Icon as typeof Users;
-              return (
-                <button
-                  key={String(name)}
-                  className="nav-item nav-pending"
-                  disabled
-                  title="후속 단계에서 연결 예정"
-                >
-                  <I size={18} />
-                  <span>{String(name)}</span>
-                  <small>준비 중</small>
-                </button>
-              );
-            })}
+
           </nav>
           <div className="nav-label">OPERATIONS</div>
           <nav aria-label="운영 메뉴">
             <button className={"nav-item " + (screen === "operations" ? "active" : "")} aria-current={screen === "operations" ? "page" : undefined} onClick={() => navigate("operations")}><RefreshCw size={18}/><span>운영 업데이트</span></button>
-            {[
-              ["시스템 상태", HeartPulse],
-              ["로그/진단", ClipboardList],
-            ].map(([name, Icon]) => {
-              const I = Icon as typeof Users;
-              return (
-                <button
-                  key={String(name)}
-                  className="nav-item nav-pending"
-                  disabled
-                  title="후속 단계에서 연결 예정"
-                >
-                  <I size={18} />
-                  <span>{String(name)}</span>
-                  <small>준비 중</small>
-                </button>
-              );
-            })}
+
           </nav>
           <div className="sidebar-bottom">
             <div className="source-health">
@@ -306,23 +270,18 @@ export default function LiveApp() {
                 }
               />
               <div>
-                OpenWebUI API
+                OpenWebUI
                 <small>
                   {screen === "overview"
-                    ? "캐시 기준 조회"
+                    ? "데이터 연결됨"
                     : error
                       ? "연결 확인 필요"
                       : data
-                        ? "분석 캐시 연결"
+                        ? "데이터 연결됨"
                         : "데이터 확인 중"}
                 </small>
               </div>
             </div>
-            <p className="live-note">
-              OpenWebUI 등록 사용자 기준
-              <br />
-              CSV는 조직 정보만 보강합니다.
-            </p>
           </div>
         </aside>
         <div className="workspace">
@@ -331,8 +290,7 @@ export default function LiveApp() {
               <IconButton label="메뉴" onClick={() => setMobile(!mobile)}>
                 <Menu size={18} />
               </IconButton>
-              <span>Workspace</span>
-              <ChevronRight size={13} />
+
               <strong>
                 {screen === "overview"
                   ? "개요"
@@ -344,16 +302,7 @@ export default function LiveApp() {
               </strong>
             </div>
             <div className="topbar-actions">
-              <span className="env-badge">API</span>
-              <IconButton
-                label="대시보드 인증 설정"
-                onClick={() => {
-                  setCredential(token);
-                  setAuth(true);
-                }}
-              >
-                <Settings2 size={18} />
-              </IconButton>
+
               <IconButton
                 label={dark ? "라이트 모드" : "다크 모드"}
                 onClick={() => setDark(!dark)}
@@ -365,15 +314,6 @@ export default function LiveApp() {
           <main className="main live-main">
             <div className="page-heading">
               <div>
-                <span className="eyebrow">
-                  {screen === "overview"
-                    ? "OVERVIEW"
-                    : screen === "operations" ? "OPERATIONS"
-                  : screen === "categories" ? "QUESTION CATEGORIES"
-                    : screen === "tokens"
-                      ? "TOKEN ANALYTICS"
-                      : "PEOPLE ANALYTICS"}
-                </span>
                 <h1>
                   {screen === "overview"
                     ? "OpenWebUI 사용 현황"
@@ -405,14 +345,14 @@ export default function LiveApp() {
                   }
                   onChange={patch}
                 />}
-                <button
+{screen !== "operations" && <button
                   className="button"
                   onClick={() => refresh((n) => n + 1)}
                   disabled={loading}
                 >
                   <RefreshCw size={16} className={loading ? "spinning" : ""} />
                   새로고침
-                </button>
+                </button>}
               </div>
             </div>
             {screen === "users" && (
@@ -459,10 +399,6 @@ export default function LiveApp() {
                 )}
               </section>
             )}
-            {screen !== "operations" && <p className="live-note">
-              최근 기간과 이번달은 마지막 성공 수집일을 기준으로 계산합니다.
-              날짜 경계는 한국 시간입니다.
-            </p>}
             {screen === "overview" && (
               <Overview
                 q={q}
@@ -515,8 +451,7 @@ export default function LiveApp() {
                 <h2>사용자 데이터를 표시할 수 없습니다</h2>
                 <p>{error}</p>
                 <p>
-                  최초 수집 전에는 서버에서 전체 동기화를 실행하세요. 인증이
-                  필요하면 상단 설정에서 대시보드 토큰을 입력하세요.
+                  연결 상태를 확인하고 데이터를 업데이트하세요.
                 </p>
                 <button
                   className="button primary"
@@ -540,8 +475,7 @@ export default function LiveApp() {
                 )}
                 {data.dataState.organization !== "loaded" && (
                   <p className="live-note">
-                    조직 CSV 상태: {data.dataState.organization}. 미매칭
-                    사용자는 기타 조직으로 표시됩니다.
+                    조직 정보를 확인하세요.
                   </p>
                 )}
                 {q.view === "leader" && (
@@ -632,7 +566,7 @@ export default function LiveApp() {
                 >
                   <Panel
                     title="질문 추이"
-                    subtitle="선택 필터 전체 집계 · 현재 페이지와 무관"
+
                   >
                     <Chart
                       dark={dark}
@@ -650,7 +584,7 @@ export default function LiveApp() {
                   {q.view !== "leader" && (
                     <Panel
                       title="현재 페이지 질문 수"
-                      subtitle="현재 정렬 순서 중 앞 10개 행"
+
                     >
                       <Chart
                         dark={dark}
@@ -673,7 +607,7 @@ export default function LiveApp() {
                       ? "사용자 순위 · 팀장 필터"
                       : "사용자 전체 순위"
                   }
-                  subtitle="질문 수 순서 · 0건 사용자 포함 · 동률은 이름/ID 순서"
+
                 >
                   <div className="table-toolbar">
                     <form
@@ -826,48 +760,18 @@ export default function LiveApp() {
                     </div>
                   </div>
                 </Panel>
-                <div className="live-note live-unconnected">
-                  이 화면은 OpenWebUI 질문 활동을 표시합니다. 토큰·비용은 토큰
-                  사용량 탭에서 확인하세요. 질문 카테고리 분류는 준비 중입니다.
-                </div>
                 <footer className="page-footer">
-                  <span>마지막 성공 수집: {dateTime(data.updatedAt)}</span>
+                  <span>마지막 업데이트: {dateTime(data.updatedAt)}</span>
                   <span>
                     {data.period.start || "전체"} — {data.period.end || "전체"}{" "}
-                    · Asia/Seoul
+                    · 한국 시간
                   </span>
                 </footer>
               </motion.div>
             )}
           </main>
         </div>
-        {auth && (
-          <Modal title="대시보드 인증" onClose={() => setAuth(false)}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setToken(credential.trim());
-                setAuth(false);
-              }}
-            >
-              <p>
-                백엔드에 DASHBOARD_API_TOKEN을 설정한 경우에만 입력하세요.
-                OpenWebUI 관리자 키를 입력하지 마세요. 입력값은 메모리에만
-                유지되며 새로고침하면 지워집니다.
-              </p>
-              <label className="live-auth">
-                대시보드 토큰
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={credential}
-                  onChange={(e) => setCredential(e.target.value)}
-                />
-              </label>
-              <button className="button primary">적용</button>
-            </form>
-          </Modal>
-        )}
+
         {drawer && (
           <Modal drawer title="사용자 상세" onClose={() => setDrawer(null)}>
             <div className="person-detail">

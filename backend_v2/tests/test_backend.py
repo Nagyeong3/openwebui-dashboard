@@ -77,6 +77,9 @@ class FakeClient:
     def users(self):
         return copy.deepcopy(self.people)
 
+    def chat_messages(self, chat_id):
+        return copy.deepcopy([m for m in self.items if m['chat_id']==chat_id])
+
     def messages(self, user_id, skip):
         self.calls.append((user_id, skip))
         if self.failure and user_id == "u2":

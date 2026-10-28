@@ -72,7 +72,7 @@ function Pending({ category = false }: { category?: boolean }) {
     <div className="overview-pending" role="status">
       {category ? <PieChart size={32} /> : <Layers3 size={32} />}
       <strong>
-        {category ? "카테고리 분류 준비 중" : "LiteLLM 연동 준비 중"}
+        {category ? "분류 결과가 없습니다" : "사용량이 없습니다"}
       </strong>
       <p>
         {category
@@ -135,8 +135,7 @@ export default function Overview({
         <h2>개요를 불러올 수 없습니다</h2>
         <p>{error}</p>
         <p>
-          수집 상태와 대시보드 인증 설정을 확인한 뒤 상단의 다시 조회를
-          눌러주세요.
+          연결 상태를 확인하고 다시 불러오세요.
         </p>
       </div>
     );
@@ -232,7 +231,7 @@ export default function Overview({
           <div className="metric-note">
             {tokens.status === "ready"
               ? "LiteLLM 로그 기준"
-              : "LiteLLM 수집 준비 중"}
+              : "업데이트 필요"}
           </div>
         </article>
       </div>
@@ -382,7 +381,7 @@ export default function Overview({
       <div className="overview-bottom">
         <Panel
           title="토큰 사용 요약"
-          subtitle="LiteLLM 로그 기준"
+
           className="overview-panel overview-token-panel"
         >
           <div className="overview-cost">
@@ -398,7 +397,7 @@ export default function Overview({
             <small>
               {tokens.status === "ready"
                 ? "LiteLLM 기준"
-                : "LiteLLM 수집 준비 중"}
+                : "업데이트 필요"}
             </small>
           </div>
           <div className="overview-token-total">
@@ -439,7 +438,7 @@ export default function Overview({
               ? "미수집 값은 실제 0과 구분하여 표시합니다."
               : tokens.missingCostRequests
                 ? "비용이 누락된 요청이 있습니다. 토큰 화면에서 확인하세요."
-                : "로그 spend 우선 · 누락 시 설정된 가격표로 추정"}
+                : ""}
           </p>
         </Panel>
         <Panel
@@ -461,7 +460,7 @@ export default function Overview({
               <div className="overview-pending">
                 <Users size={30} />
                 <strong>매핑된 팀장이 없습니다</strong>
-                <p>조직 CSV의 직급과 사용자 매핑을 확인하세요.</p>
+                <p>조직 정보를 확인하세요.</p>
               </div>
             ) : leaderMode === "chart" ? (
               <Chart
@@ -510,14 +509,10 @@ export default function Overview({
       </div>
       <footer className="page-footer">
         <span>
-          마지막 성공 수집:{" "}
+          마지막 업데이트:{" "}
           {new Date(data.updatedAt).toLocaleString("ko-KR", {
             timeZone: "Asia/Seoul",
           })}
-        </span>
-        <span>
-          사용자·질문: OpenWebUI API / 토큰·비용: LiteLLM / 카테고리: LiteLLM 모델
-          분류 예정
         </span>
       </footer>
     </div>

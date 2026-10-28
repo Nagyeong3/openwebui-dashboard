@@ -1,3 +1,5 @@
+2026-10-28 후속: [작업 제어·분류 확인·화면 변경](docs/CONTROLS_AND_REVIEW_OFFLINE.md).
+
 2026-10-28: 운영 업데이트 메뉴와 실제 통합 실행을 연결했습니다. [반입/사용법](docs/OPERATIONS_UPDATE_OFFLINE.md).
 
 2026-10-28 v2 질문 분류: [설정과 실행 절차](docs/CATEGORY_CLASSIFICATION_OFFLINE.md). 기존 category/description/keywords/examples/active CSV를 활용합니다.

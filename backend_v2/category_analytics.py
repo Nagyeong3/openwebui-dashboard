@@ -2,7 +2,7 @@ from collections import Counter
 from datetime import datetime, time, timedelta
 from .analytics import period, SEOUL, ALL, choices
 from .organization import enrich, load_org
-from .categories import taxonomy, profile, UNCLASSIFIED
+from .categories import taxonomy, profile, UNCLASSIFIED, digest
 from .category_store import CategoryStore, key
 
 
@@ -22,6 +22,7 @@ def category_usage(cache, settings, *, start=None,end=None,range_value='7d',divi
     selected = {u['id']:u for u in users if all(v==ALL or u[k]==v for k,v in (('division',division),('team',team),('position',position)))}
     store = CategoryStore(settings.category_cache_path)
     results = store.read(version)
+    overrides = store.overrides(version)
     dist = Counter({d['category']:0 for d in definitions})
     dist[UNCLASSIFIED]=0
     rows, states, daily = [], Counter(), Counter()
@@ -35,6 +36,10 @@ def category_usage(cache, settings, *, start=None,end=None,range_value='7d',divi
         fallback = state in ('uncertain','fallback') and '기타' in dist
         if fallback:
             cat, state = '기타', 'classified'
+        manual=overrides.get(digest(m['id']))
+        manual=manual if manual and manual['content_key']==key(m) and manual['category'] in dist else None
+        if manual:
+            cat,state,fallback=manual['category'],'classified',False
         total+=1; states[state]+=1; dist[cat]+=1
         truncated+=int(bool(r and r['truncated']))
         date = datetime.fromtimestamp(m['created_at'],SEOUL).date().isoformat()
@@ -42,7 +47,7 @@ def category_usage(cache, settings, *, start=None,end=None,range_value='7d',divi
             continue
         daily[date]+=1
         u = selected[m['user_id']]
-        rows.append({'id':m['id'],'at':m['created_at'],'userName':u['name'],'division':u['division'],'team':u['team'],'category':cat,'state':state,'fallback':fallback,'confidence':r['confidence'] if r else None,'truncated':bool(r and r['truncated'])})
+        rows.append({'id':m['id'],'at':m['created_at'],'userName':u['name'],'division':u['division'],'team':u['team'],'category':cat,'state':state,'manual':bool(manual),'fallback':fallback,'confidence':r['confidence'] if r and not manual else None,'truncated':bool(r and r['truncated'])})
     records = [{'name':name,'value':n,'percent':round(n/total*100,1) if total else 0} for name,n in sorted(dist.items(),key=lambda p:(-p[1],p[0]))]
     return {'schemaVersion':1,'source':'category-llm-cache','period':{'start':str(a) if a else None,'end':str(b) if b else None,'timezone':'Asia/Seoul'},'updatedAt':meta['last_success'],
             'summary':{'questions':total,'classified':states['classified'],'pending':states['pending'],'uncertain':states['uncertain'],'noText':states['no-text'],'truncated':truncated,'coveragePercent':round(states['classified']/total*100,1) if total else 0},

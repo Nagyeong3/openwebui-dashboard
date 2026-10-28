@@ -5,6 +5,7 @@ const base = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
 export async function request(path: string, options: RequestInit = {}) {
   const response = await fetch(base + path, {
     cache: "no-store",
+    credentials: "same-origin",
     ...options,
     headers: { Accept: "application/json", ...options.headers },
   });
@@ -19,6 +20,7 @@ export async function request(path: string, options: RequestInit = {}) {
   }
   if (!body || typeof body !== "object")
     throw new Error("서버가 올바른 JSON 객체를 반환하지 않았습니다.");
+  if (response.status===401 && typeof window!=='undefined' && !path.includes('/auth/')) window.dispatchEvent(new Event('dashboard-login-required'));
   if (!response.ok || body.ok === false) {
     const reason = body.error || body.detail;
     throw new Error(
