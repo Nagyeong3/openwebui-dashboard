@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CategoryDistribution } from "./Categories";
 import {
   Activity,
   AlertTriangle,
@@ -75,7 +76,7 @@ function Pending({ category = false }: { category?: boolean }) {
       </strong>
       <p>
         {category
-          ? "질문 임베딩 분류 결과를 연결하면 분포가 표시됩니다."
+          ? "카테고리 화면에서 질문 분류를 실행하면 분포가 표시됩니다."
           : "토큰과 비용은 LiteLLM 로그 연결 후 표시됩니다."}
       </p>
     </div>
@@ -360,14 +361,16 @@ export default function Overview({
         </Panel>
         <Panel
           title="질문 카테고리 분포"
-          subtitle="임베딩 기반 분류 · 질문 수 기준"
+          subtitle="질문 수 기준 · 미분류 포함"
           className="overview-panel"
         >
           <div className="overview-chart-body">
-            <Pending category />
+            {data.integrations.categories.status === "ready" && data.integrations.categories.records
+              ? <CategoryDistribution rows={data.integrations.categories.records} dark={dark} table={categoryMode === "table"}/>
+              : <Pending category /> }
           </div>
           <div className="overview-panel-footer">
-            <span>분류 결과 연결 예정</span>
+            <span>{data.integrations.categories.status === "ready" ? `분류 완료 ${number(data.integrations.categories.classified ?? 0)}건` : "분류 결과 대기"}</span>
             <ModeToggle
               label="질문 카테고리 분포"
               mode={categoryMode}
@@ -513,7 +516,7 @@ export default function Overview({
           })}
         </span>
         <span>
-          사용자·질문: OpenWebUI API / 토큰·비용: LiteLLM / 카테고리: 임베딩
+          사용자·질문: OpenWebUI API / 토큰·비용: LiteLLM / 카테고리: LiteLLM 모델
           분류 예정
         </span>
       </footer>

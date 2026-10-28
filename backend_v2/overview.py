@@ -116,6 +116,16 @@ def overview(cache, settings, *, start=None, end=None, range_value="30d"):
             }
         except Exception:
             tokens["status"] = "not-synced"
+    categories = {"status":"not-connected","source":"embedding-classifier","records":None,"classified":None}
+    if settings.category_csv or settings.category_cache_path.exists():
+        try:
+            from .category_analytics import category_usage
+            result = category_usage(Snapshot(),settings,start=a,end=b,range_value="all" if not a else range_value)
+            categories = {"status":"ready","source":"litellm-classifier","records":result["distribution"],
+                          "classified":result["summary"]["classified"],"questions":result["summary"]["questions"],
+                          "pending":result["summary"]["pending"]}
+        except Exception:
+            categories = {"status":"not-synced","source":"litellm-classifier","records":None,"classified":None}
     return {
         "schemaVersion": 1,
         "source": payload["source"],
@@ -128,11 +138,6 @@ def overview(cache, settings, *, start=None, end=None, range_value="30d"):
         "leaderTop10": leaders[:10],
         "integrations": {
             "tokens": tokens,
-            "categories": {
-                "status": "not-connected",
-                "source": "embedding-classifier",
-                "records": None,
-                "classified": None,
-            },
+            "categories": categories,
         },
     }

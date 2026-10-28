@@ -50,6 +50,7 @@ import {
 
 import Overview from "./Overview";
 import Tokens from "./Tokens";
+import Categories from "./Categories";
 import PeriodPicker from "./PeriodPicker";
 
 const ALL = "전체";
@@ -254,8 +255,8 @@ export default function LiveApp() {
               <Coins size={18} />
               <span>토큰 사용량</span>
             </button>
+            <button className={"nav-item " + (screen === "categories" ? "active" : "")} aria-current={screen === "categories" ? "page" : undefined} onClick={() => navigate("categories")}><Tags size={18}/><span>질문 카테고리 분류</span></button>
             {[
-              ["질문 카테고리 분류", Tags],
               ["모델별 현황", Cpu],
             ].map(([name, Icon]) => {
               const I = Icon as typeof Users;
@@ -334,6 +335,7 @@ export default function LiveApp() {
               <strong>
                 {screen === "overview"
                   ? "개요"
+                  : screen === "categories" ? "질문 카테고리 분류"
                   : screen === "tokens"
                     ? "토큰 사용량"
                     : "사용자"}
@@ -364,6 +366,7 @@ export default function LiveApp() {
                 <span className="eyebrow">
                   {screen === "overview"
                     ? "OVERVIEW"
+                    : screen === "categories" ? "QUESTION CATEGORIES"
                     : screen === "tokens"
                       ? "TOKEN ANALYTICS"
                       : "PEOPLE ANALYTICS"}
@@ -371,6 +374,7 @@ export default function LiveApp() {
                 <h1>
                   {screen === "overview"
                     ? "OpenWebUI 사용 현황"
+                    : screen === "categories" ? "질문 카테고리 분류"
                     : screen === "tokens"
                       ? "토큰 사용량"
                       : "사용자"}
@@ -378,6 +382,7 @@ export default function LiveApp() {
                 <p className="muted">
                   {screen === "overview"
                     ? "사용자·질문·토큰을 한눈에 보는 종합 현황"
+                    : screen === "categories" ? "질문 의도로 살펴보는 AI 활용 분야"
                     : screen === "tokens"
                       ? "LiteLLM 로그로 확인하는 토큰 사용량과 비용"
                       : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
@@ -463,6 +468,7 @@ export default function LiveApp() {
                 onPeriod={(period) => setOverviewPeriod({ key, period })}
               />
             )}
+            {screen === "categories" && <Categories q={q} token={token} revision={revision} dark={dark} onChange={patch} onPeriod={(period)=>setOverviewPeriod({key,period})}/>}
             {screen === "tokens" && (
               <Tokens
                 q={q}

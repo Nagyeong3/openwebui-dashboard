@@ -351,3 +351,21 @@ test("token navigation is live and overview accepts connected token values", () 
   validateOverview(p);
   assert.ok(overviewCsv(p).includes("연동 완료"));
 });
+
+test("category contract conserves all questions including pending and uncertain", async () => {
+  const {validateCategories}=await import('./Categories');
+  const p={schemaVersion:1,source:'category-llm-cache',period:{start:null,end:null,timezone:'Asia/Seoul'},summary:{questions:4,classified:2,pending:1,uncertain:1,noText:0,truncated:0,coveragePercent:50},distribution:[{name:'문서/RAG',value:2,percent:50},{name:'미분류',value:2,percent:50}],filters:{divisions:[],teams:[],positions:[],categories:[]},definitions:[],detail:{total:4,page:1,pageSize:50,records:[]}};
+  assert.doesNotThrow(()=>validateCategories(p));
+  assert.throws(()=>validateCategories({...p,summary:{...p.summary,questions:5}}));
+  assert.throws(()=>validateCategories({...p,distribution:[{name:'문서/RAG',value:-1,percent:25}]}));
+  assert.equal(readScreen('?screen=categories'),'categories');
+});
+
+test("overview accepts partial classification and requires category totals to match questions",()=>{
+  const p=overviewFixture();
+  p.summary.questions=4;
+  p.integrations.categories={status:'ready',source:'litellm-classifier',records:[{name:'문서/RAG',value:1,percent:25},{name:'미분류',value:3,percent:75}],classified:1};
+  assert.doesNotThrow(()=>validateOverview(p));
+  p.integrations.categories.records![1].value=2;
+  assert.throws(()=>validateOverview(p));
+});

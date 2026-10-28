@@ -48,7 +48,27 @@ class Settings:
     litellm_max_pages: int = 10000
     model_prices_csv: Path | None = None
 
+    category_cache_path: Path = Path("data/category_v2.sqlite3")
+    category_csv: Path | None = None
+    category_url: str = ""
+    category_key: str = field(default="", repr=False)
+    category_model: str = ""
+    category_max_questions: int = 200
+    category_batch_size: int = 5
+    category_max_chars: int = 6000
+    category_threshold: float = 0.65
+    category_json_mode: bool = True
+    category_revision: str = "1"
+
     def __post_init__(self):
+        if self.category_url:
+            parsed = urlsplit(self.category_url)
+            if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+                raise ValueError("CATEGORY_LITELLM_BASE_URL must be an http(s) base URL without credentials/query/fragment")
+        if len({self.cache_path.resolve(),self.token_cache_path.resolve(),self.category_cache_path.resolve()}) != 3:
+            raise ValueError("OpenWebUI, token and category caches must be separate")
+        if not 1<=self.category_max_questions<=10000 or not 1<=self.category_batch_size<=20 or not 100<=self.category_max_chars<=16000 or not 0<=self.category_threshold<=1:
+            raise ValueError("Invalid category question limit/batch size/text length/threshold")
         if self.base_url:
             parsed = urlsplit(self.base_url)
             if (
@@ -117,6 +137,17 @@ class Settings:
             return result if result.is_absolute() else path.parent / result
 
         return cls(
+            category_cache_path=local_path("CATEGORY_CACHE_DB_PATH", "data/category_v2.sqlite3"),
+            category_csv=local_path("CATEGORY_DEFINITIONS_CSV_PATH"),
+            category_url=config("CATEGORY_LITELLM_BASE_URL", default="").rstrip("/"),
+            category_key=config("CATEGORY_LITELLM_API_KEY", default=""),
+            category_model=config("CATEGORY_LLM_MODEL", default=""),
+            category_max_questions=config("CATEGORY_LLM_MAX_QUESTIONS", cast=int, default=200),
+            category_batch_size=config("CATEGORY_BATCH_SIZE", cast=int, default=5),
+            category_max_chars=config("CATEGORY_MAX_QUESTION_CHARS", cast=int, default=6000),
+            category_threshold=config("CATEGORY_MIN_CONFIDENCE", cast=float, default=0.65),
+            category_json_mode=config("CATEGORY_JSON_MODE", cast=bool, default=True),
+            category_revision=config("CATEGORY_CLASSIFIER_REVISION", default="1"),
             token_cache_path=local_path(
                 "TOKEN_CACHE_DB_PATH", "data/token_usage_v2.sqlite3"
             ),

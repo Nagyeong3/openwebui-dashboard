@@ -262,9 +262,10 @@ export function validateLeaderRanking(data: Payload) {
   }
 }
 
-export type Screen = "overview" | "users" | "tokens";
+export type Screen = "overview" | "users" | "tokens" | "categories";
 export function readScreen(search: string): Screen {
   const p = new URLSearchParams(search);
+  if (p.get("screen") === "categories") return "categories";
   if (p.get("screen") === "tokens") return "tokens";
   if (p.get("screen") === "overview") return "overview";
   // Preserve old bookmarked user/leader views; no separate team/leader pages.
@@ -313,10 +314,12 @@ export type OverviewPayload = Pick<
       updatedAt?: string;
     };
     categories: {
-      status: "not-connected";
-      source: "embedding-classifier";
-      records: null;
-      classified: null;
+      status: "not-connected" | "not-synced" | "ready";
+      source: "embedding-classifier" | "litellm-classifier";
+      records: {name:string;value:number;percent:number}[] | null;
+      classified: number | null;
+      questions?: number;
+      pending?: number;
     };
   };
 };
@@ -412,10 +415,11 @@ export function validateOverview(
         t.costUsd,
       ].some((v) => v !== null)) ||
     !categories ||
-    categories.status !== "not-connected" ||
-    categories.source !== "embedding-classifier" ||
-    categories.records !== null ||
-    categories.classified !== null
+    !["not-connected","not-synced","ready"].includes(categories.status) ||
+    !["embedding-classifier","litellm-classifier"].includes(categories.source) ||
+    (categories.status === "ready"
+      ? !Array.isArray(categories.records) || !count(categories.classified) || categories.records.some(r=>typeof r.name!=="string" || !count(r.value) || !Number.isFinite(r.percent) || r.percent<0 || r.percent>100) || categories.records.reduce((n,r)=>n+r.value,0)!==p.summary.questions
+      : categories.records !== null || categories.classified !== null)
   )
     fail();
 }

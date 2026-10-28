@@ -1,6 +1,6 @@
 # Maintenance handoff
 
-Last updated: 2026-10-20 (Asia/Seoul)
+Last updated: 2026-10-28 (Asia/Seoul)
 
 2026-10-22 new implementation: see `docs/OPENWEBUI_0123_API.md` and `backend_v2/README.md`. User approved an API-first redesign against OpenWebUI 0.12.3. The snapshot-based deployed system below is historical context, not the new v2 architecture. Collector/cache/zero-usage user analytics are newly implemented; closed-network integration and React wiring are still pending.
 
@@ -217,3 +217,10 @@ Recommended validation cases:
 사용자 보고: 폐쇄망 LiteLLM 토큰 수집 정상. 신규 프런트 수정: 개요와 토큰 화면의 지표/표에 토큰·USD·건·명·토큰/요청 단위를 명시하고 추이의 K/M 축약 의미를 표시합니다. 팀장 그래프의 필터/페이지/0건 포함 등 개발 설명 문구를 제거하고 행 간격을 32px에서 22px로 줄였습니다. 그래프 높이는 전체 인원수에 비례하며 480px 내부 스크롤 제한을 제거했습니다. 전체 팀장과 0건 기록은 그대로 유지합니다. 인원이 매우 많으면 페이지 자체는 길어지며 순위를 숨기거나 축약하지 않습니다. 실제 폐쇄망 화면 검수는 남아 있습니다. 백엔드·캐시·환경 변경이나 재수집은 필요하지 않습니다.
 
 로컬 검증: 프런트 24개 테스트 통과, TypeScript 및 API 모드 빌드 성공. 실제 브라우저/폐쇄망 시각 검수는 미완료.
+
+
+## 2026-10-28 CSV 기반 질문 분류 신규 구현
+
+사용자 요청: 기존 category/description/keywords/examples/active CSV와 LiteLLM 경유 분류를 참고. 신규 코드: CSV 활성 정의로 batched chat completion, 엄격한 응답 검증, 해시/첨부여부/설정 버전별 별도 SQLite 결과 캐시, pending/retry 제한 배치와 비동기 상태, CLI, 카테고리 화면, 개요 분포 연결. 임베딩 대안보다 현재 CSV 의도 정의를 활용하는 LLM 방식을 우선 구현했으며 정확도 우위는 주장하지 않습니다. 분석 캐시 원문 미저장 정책 유지: 대상 질문을 분류할 때 API로 재조회하고 일치하는 해시만 사용합니다. 분류 DB에 원문/직원 ID/모델 응답 원문을 저장하지 않습니다. 실제 질문 본문은 사내 분류 모델 서버로 전송됩니다. 기존 legacy category_cache.db 자동이관 없음. 시행/제약/분류키 역할은 docs/CATEGORY_CLASSIFICATION_OFFLINE.md. 실제 모델/폐쇄망/브라우저 검수는 미완료.
+
+로컬 검증: 백엔드 75개 / 프런트 26개 테스트, TypeScript 및 API 모드 빌드 통과. 합성 데이터 기준이며 실제 LiteLLM 모델 정확도/브라우저 시각 검수는 미완료.

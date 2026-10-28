@@ -1,3 +1,5 @@
+2026-10-28: CSV 기반 LiteLLM 질문 분류·캐시·화면·개요 연결 신규 구현. [폐쇄망 설정/검수](../docs/CATEGORY_CLASSIFICATION_OFFLINE.md). 실제 모델 정확도 및 현장 연동은 검수 필요.
+
 2026-10-27: LiteLLM 토큰 수집·캐시·화면·개요 연동 신규 구현. [설정/폐쇄망 검수 절차](../docs/TOKEN_USAGE_OFFLINE.md)를 참고하세요. 실제 LiteLLM 연동 검수는 현장에서 필요합니다.
 
 2026-10-27: API 개요 화면 및 사용자 메뉴 통합 구현. [개요 업데이트/폐쇄망 반입 절차](../docs/OVERVIEW_OFFLINE.md)를 참고하세요. 토큰·비용·카테고리는 연동 준비 상태입니다.
