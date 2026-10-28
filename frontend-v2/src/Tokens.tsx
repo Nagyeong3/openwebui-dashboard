@@ -427,10 +427,10 @@ export default function Tokens({
           )}
           <div className="token-primary">
             {[
-              ["총 토큰", value(data.summary.total)],
-              ["입력 토큰", value(data.summary.input)],
-              ["출력 토큰", value(data.summary.output)],
-              ["추정 비용", money(data.summary.costUsd)],
+              ["총 토큰 (토큰)", value(data.summary.total)],
+              ["입력 토큰 (토큰)", value(data.summary.input)],
+              ["출력 토큰 (토큰)", value(data.summary.output)],
+              ["추정 비용 (USD)", money(data.summary.costUsd)],
             ].map(([label, n]) => (
               <article className="metric" key={label}>
                 <div className="metric-top">
@@ -439,7 +439,7 @@ export default function Tokens({
                 </div>
                 <strong className="pending-value">{n}</strong>
                 <div className="metric-note">
-                  {label === "추정 비용"
+                  {label === "추정 비용 (USD)"
                     ? "로그 spend 우선 · 누락 시 가격표 추정"
                     : "LiteLLM 로그 기준"}
                 </div>
@@ -448,9 +448,9 @@ export default function Tokens({
           </div>
           <div className="token-secondary">
             {[
-              ["요청 수", value(data.summary.requests)],
-              ["식별 사용자 수", value(data.summary.users)],
-              ["평균 토큰/요청", value(data.summary.averagePerRequest)],
+              ["요청 수 (건)", value(data.summary.requests)],
+              ["식별 사용자 수 (명)", value(data.summary.users)],
+              ["요청당 평균 (토큰/요청)", value(data.summary.averagePerRequest)],
             ].map(([label, n]) => (
               <article className="metric" key={label}>
                 <div className="metric-top">{label}</div>
@@ -468,7 +468,7 @@ export default function Tokens({
           <div className="live-charts">
             <Panel
               title="토큰 사용 추이"
-              subtitle="선택 필터 전체 · 일별 총 토큰"
+              subtitle="단위: 토큰 · K = 1,000 · M = 1,000,000"
             >
               <div className="overview-chart-body">
                 {graph ? (
@@ -500,8 +500,8 @@ export default function Tokens({
                       <thead>
                         <tr>
                           <th>날짜</th>
-                          <th>전체 토큰</th>
-                          <th>비용 USD</th>
+                          <th>전체 토큰 (토큰)</th>
+                          <th>비용 (USD)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -528,7 +528,7 @@ export default function Tokens({
             </Panel>
             <Panel
               title="토큰 사용량 Top 10"
-              subtitle="식별된 사용자 기준 · 총 토큰 순"
+              subtitle="단위: 토큰 · 식별된 사용자 기준 · K = 1,000 · M = 1,000,000"
             >
               <div className="overview-chart-body">
                 {!data.topUsers.length ? (
@@ -543,6 +543,7 @@ export default function Tokens({
                         .filter((r) => r.total !== null)
                         .map((r) => ({ name: r.name!, value: r.total! })),
                       dark,
+                      "토큰",
                     )}
                   />
                 ) : (
@@ -552,7 +553,7 @@ export default function Tokens({
                         <tr>
                           <th>사용자명</th>
                           <th>팀</th>
-                          <th>토큰</th>
+                          <th>토큰 수 (토큰)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -615,10 +616,10 @@ export default function Tokens({
                       <th>시각</th>
                       <th>모델</th>
                       <th>사용자</th>
-                      <th>입력</th>
-                      <th>출력</th>
-                      <th>전체</th>
-                      <th>비용 USD</th>
+                      <th>입력 (토큰)</th>
+                      <th>출력 (토큰)</th>
+                      <th>전체 (토큰)</th>
+                      <th>비용 (USD)</th>
                       <th>비용 기준</th>
                     </tr>
                   </thead>
@@ -652,11 +653,11 @@ export default function Tokens({
                             ? "실 / 팀"
                             : "모델"}
                       </th>
-                      <th>요청 수</th>
-                      <th>입력</th>
-                      <th>출력</th>
-                      <th>전체</th>
-                      <th>비용 USD</th>
+                      <th>요청 수 (건)</th>
+                      <th>입력 (토큰)</th>
+                      <th>출력 (토큰)</th>
+                      <th>전체 (토큰)</th>
+                      <th>비용 (USD)</th>
                     </tr>
                   </thead>
                   <tbody>

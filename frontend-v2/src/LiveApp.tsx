@@ -489,9 +489,6 @@ export default function LiveApp() {
                   />
                   팀장만 보기
                 </label>
-                {q.view === "leader" && (
-                  <span>직급에 ‘팀장’이 포함된 사용자 · 사용량 0 포함</span>
-                )}
               </div>
             )}
             {loading && (
@@ -538,7 +535,6 @@ export default function LiveApp() {
                 {q.view === "leader" && (
                   <Panel
                     title="팀장별 질문 수"
-                    subtitle={`선택 필터의 전체 팀장 ${number(data.detail.total)}명 · 표 페이지와 무관 · 사용량 0 포함`}
                     className="leader-first-panel"
                   >
                     {!data.leaderRanking?.length ? (
@@ -546,13 +542,12 @@ export default function LiveApp() {
                     ) : (
                       <div
                         className="leader-full-chart"
-                        tabIndex={0}
                         role="region"
-                        aria-label="전체 팀장 질문 수 그래프. 아래로 스크롤하여 전체 순위 확인"
+                        aria-label="전체 팀장 질문 수 그래프"
                       >
                         <Chart
                           dark={dark}
-                          height={Math.max(260, data.leaderRanking.length * 32)}
+                          height={Math.max(240, data.leaderRanking.length * 22 + 24)}
                           label="전체 팀장별 질문 수, 사용량 0 포함"
                           option={barOption(
                             data.leaderRanking.map((r) => ({
@@ -564,10 +559,6 @@ export default function LiveApp() {
                         />
                       </div>
                     )}
-                    <p className="live-note">
-                      모든 팀장을 표시합니다. 인원이 많으면 그래프 안에서 아래로
-                      스크롤하세요. 기간·조직·검색·정렬 조건이 적용됩니다.
-                    </p>
                   </Panel>
                 )}
                 <div className="metrics-grid live-metrics">

@@ -222,7 +222,7 @@ export default function Overview({
         />
         <article className="metric overview-unavailable">
           <div className="metric-top">
-            <span>총 토큰</span>
+            <span>총 토큰 (토큰)</span>
             <Layers3 size={18} />
           </div>
           <strong className="pending-value">
@@ -385,7 +385,7 @@ export default function Overview({
           <div className="overview-cost">
             <CircleDollarSign size={25} />
             <div>
-              <span>추정 비용</span>
+              <span>추정 비용 (USD)</span>
               <strong>
                 {tokens.costUsd === null
                   ? "—"
@@ -400,13 +400,13 @@ export default function Overview({
           </div>
           <div className="overview-token-total">
             <Layers3 size={19} />
-            <span>총 토큰</span>
+            <span>총 토큰 (토큰)</span>
             <strong>
               {tokens.total === null ? "—" : number(tokens.total)}
             </strong>
           </div>
           <div className="overview-token-grid">
-            {["입력 토큰", "출력 토큰", "요청 수", "평균 토큰/요청"].map(
+            {["입력 토큰 (토큰)", "출력 토큰 (토큰)", "요청 수 (건)", "요청당 평균 (토큰/요청)"].map(
               (label, index) => (
                 <div key={label}>
                   <span>{label}</span>
@@ -496,7 +496,7 @@ export default function Overview({
             )}
           </div>
           <div className="overview-panel-footer">
-            <span>사용량 0 포함 · 전체 보기에서 전체 팀장 순위 확인</span>
+            <span />
             <ModeToggle
               label="팀장 Top 10"
               mode={leaderMode}

@@ -2477,7 +2477,7 @@ tbody tr:last-child td {
 .status-dot.neutral { background:var(--muted); box-shadow:none; }
 
 .leader-first-panel { margin:20px 0; }
-.leader-full-chart { max-height:480px; overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable; border-radius:8px; }
+.leader-full-chart { width:100%; border-radius:8px; }
 .live-charts.leader-trend-only { grid-template-columns:1fr; }
 .live-heading-actions { display:flex; gap:10px; align-items:center; }
 .period-select { border:1px solid var(--border); background:var(--surface); border-radius:9px; padding:10px 12px; color:var(--text); font:inherit; font-size:12px; }

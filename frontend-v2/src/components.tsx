@@ -458,6 +458,7 @@ export function lineOption(
 export function barOption(
   data: { name: string; value: number }[],
   dark: boolean,
+  unit = "",
 ) {
   return {
     grid: { top: 4, left: 116, right: 50, bottom: 18 },
@@ -477,7 +478,7 @@ export function barOption(
     },
     tooltip: {
       trigger: "item",
-      valueFormatter: (v: unknown) => number(Number(v)),
+      valueFormatter: (v: unknown) => number(Number(v)) + (unit ? " " + unit : ""),
     },
     series: [
       {
