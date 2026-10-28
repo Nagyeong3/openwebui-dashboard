@@ -1,3 +1,5 @@
+2026-10-28: 운영 업데이트 메뉴와 실제 통합 실행을 연결했습니다. [반입/사용법](docs/OPERATIONS_UPDATE_OFFLINE.md).
+
 2026-10-28 v2 질문 분류: [설정과 실행 절차](docs/CATEGORY_CLASSIFICATION_OFFLINE.md). 기존 category/description/keywords/examples/active CSV를 활용합니다.
 
 2026-10-27: LiteLLM 토큰 수집·캐시·화면·개요 연동 신규 구현. [설정/폐쇄망 검수 절차](docs/TOKEN_USAGE_OFFLINE.md)를 참고하세요. 실제 LiteLLM 연동 검수는 현장에서 필요합니다.

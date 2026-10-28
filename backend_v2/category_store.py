@@ -78,10 +78,10 @@ PRAGMA user_version=1;''')
             r = db.execute("SELECT stop_requested FROM category_runs WHERE id=?",(run,)).fetchone()
             return bool(r and r[0])
 
-    def request_stop(self):
+    def request_stop(self, expected_run=None):
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
-            r = db.execute("SELECT id FROM category_runs WHERE status='running' AND expires>?",(time.time(),)).fetchone()
+            r = db.execute("SELECT id FROM category_runs WHERE status='running' AND expires>?" + (" AND id=?" if expected_run else ""), (time.time(),expected_run) if expected_run else (time.time(),)).fetchone()
             if not r:
                 raise BusyError('No active category classification')
             db.execute('UPDATE category_runs SET stop_requested=1 WHERE id=?',(r[0],))

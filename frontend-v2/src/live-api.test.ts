@@ -369,3 +369,35 @@ test("overview accepts partial classification and requires category totals to ma
   p.integrations.categories.records![1].value=2;
   assert.throws(()=>validateOverview(p));
 });
+
+test('operations navigation and persisted step statuses reject malformed progress',async()=>{
+  const {validateOperations}=await import('./Operations');
+  assert.equal(readScreen('?screen=operations'),'operations');
+  const p={schemaVersion:1,activeRunId:'job',sources:{openwebui:{configured:true,activeRunId:null},tokens:{configured:true,activeRunId:null},categories:{configured:true,activeRunId:null}},overlap:{openwebuiDays:7,litellmHours:24},runs:[{id:'job',kind:'quick',status:'running',started_at:'2026-10-28T00:00:00Z',finished_at:null,error:null,steps:[{name:'openwebui',status:'success',stats:{newQuestions:10}},{name:'tokens',status:'running',stats:{scanned:20}},{name:'categories',status:'waiting',stats:{}}]}]};
+  assert.doesNotThrow(()=>validateOperations(p));
+  assert.throws(()=>validateOperations({...p,activeRunId:'missing'}));
+  const bad=structuredClone(p);bad.runs[0].steps[1].stats.scanned=-1;
+  assert.throws(()=>validateOperations(bad));
+  const duplicate=structuredClone(p);duplicate.runs[0].steps[1].name='openwebui';
+  assert.throws(()=>validateOperations(duplicate));
+});
+
+test('actual live sidebar opens operations with an enabled active menu and no period selector',async()=>{
+  const savedLocation=Object.getOwnPropertyDescriptor(globalThis,'location');
+  const savedStorage=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  Object.defineProperty(globalThis,'location',{configurable:true,value:{search:'?screen=operations',pathname:'/'}});
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=>null}});
+  try{
+    const React=await import('react');
+    const {renderToStaticMarkup}=await import('react-dom/server');
+    const {default:LiveApp}=await import('./LiveApp');
+    const html=renderToStaticMarkup(React.createElement(LiveApp));
+    const menu=[...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].find(m=>m[2].includes('<span>운영 업데이트</span>'));
+    assert.ok(menu);assert.match(menu[1],/aria-current="page"/);assert.doesNotMatch(menu[1],/disabled/);
+    assert.doesNotMatch(html,/조회 기간:/);
+    assert.match(html,/<h1>운영 업데이트<\/h1>/);
+  }finally{
+    if(savedLocation)Object.defineProperty(globalThis,'location',savedLocation);else Reflect.deleteProperty(globalThis,'location');
+    if(savedStorage)Object.defineProperty(globalThis,'localStorage',savedStorage);else Reflect.deleteProperty(globalThis,'localStorage');
+  }
+});

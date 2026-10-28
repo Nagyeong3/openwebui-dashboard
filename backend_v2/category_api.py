@@ -17,7 +17,7 @@ def attach(app, settings, cache, authorized):
                 configured,error = True,None
             except ValueError as e:
                 configured,error = False,str(e)
-            return {**store.status(),'configured':configured,'configurationError':error,'batchLimit':settings.category_max_questions,'sampleLimit':min(20,settings.category_max_questions)}
+            return {**store.status(),'configured':configured,'configurationError':error,'batchLimit':settings.category_max_questions,'sampleLimit':min(20,settings.category_max_questions),'model':settings.category_model,'separateModelUrl':bool(settings.category_url)}
         except RuntimeError as e:
             raise HTTPException(422,str(e)) from None
 

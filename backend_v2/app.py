@@ -191,6 +191,10 @@ def create_app(settings=None, cache=None):
 
     attach_categories(app, settings, cache, authorized)
 
+    from .operations_api import attach as attach_operations
+
+    attach_operations(app, settings, cache, authorized)
+
     # Optional same-origin static hosting: no Node runtime, proxy or CORS required.
     frontend = settings.frontend_dir
     if frontend:

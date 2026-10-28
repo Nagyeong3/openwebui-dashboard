@@ -60,7 +60,15 @@ class Settings:
     category_json_mode: bool = True
     category_revision: str = "1"
 
+    operations_cache_path: Path | None = None
+
+    @property
+    def operations_path(self):
+        return self.operations_cache_path or self.cache_path.with_name("operations_v2.sqlite3")
+
     def __post_init__(self):
+        if self.operations_path.resolve() in {self.cache_path.resolve(),self.token_cache_path.resolve(),self.category_cache_path.resolve()}:
+            raise ValueError("Operations DB must be separate from data, token and category caches")
         if self.category_url:
             parsed = urlsplit(self.category_url)
             if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -137,6 +145,7 @@ class Settings:
             return result if result.is_absolute() else path.parent / result
 
         return cls(
+            operations_cache_path=local_path("OPERATIONS_CACHE_DB_PATH"),
             category_cache_path=local_path("CATEGORY_CACHE_DB_PATH", "data/category_v2.sqlite3"),
             category_csv=local_path("CATEGORY_DEFINITIONS_CSV_PATH"),
             category_url=config("CATEGORY_LITELLM_BASE_URL", default="").rstrip("/"),

@@ -81,6 +81,8 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
             check_stop()
             progress()
             inputs = [{'id':f'Q{i}','text':q[1], 'hasAttachments':bool(q[0]['has_files'])} for i,q in enumerate(batch)]
+            calls += 1
+            progress()
             out = model.classify(inputs)
             # Validate injected clients too; no partial batch publication.
             allowed = {d['category'] for d in definitions}
@@ -96,7 +98,6 @@ def collect(settings, cache, store, run, upstream=None, classifier=None):
                 decisions.append(row)
                 results[k] = {'category':cat,'state':row[3]}
                 completed_keys.add(k)
-            calls += 1
             processed += len(batch)
             progress(decisions)
             batch.clear()

@@ -7,7 +7,7 @@ import { periodParams, type Query, type Payload } from './live-api';
 
 export type CategorySlice = {name:string;value:number;percent:number};
 type Run = {id:string;status:string;processed:number;calls:number;reused:number;unavailable:number;total:number;stop_requested:number;chunksDone:number;window_size:number;error:string|null};
-type Status = {configured:boolean;configurationError:string|null;batchLimit:number;sampleLimit:number;activeRunId:string|null;runs:Run[]};
+type Status = {model?:string;separateModelUrl?:boolean;configured:boolean;configurationError:string|null;batchLimit:number;sampleLimit:number;activeRunId:string|null;runs:Run[]};
 type CategoryPayload = {
   schemaVersion:1; source:'category-llm-cache'; period:Payload['period'];
   summary:{questions:number;classified:number;pending:number;uncertain:number;noText:number;truncated:number;coveragePercent:number};
@@ -77,8 +77,9 @@ export default function Categories({q,token,revision,dark,onChange,onPeriod}:{q:
         {status?.activeRunId&&<button className="button" disabled={!!status.runs[0]?.stop_requested} onClick={async()=>{try{await request('/api/dashboard/v2/categories/stop',{method:'POST',headers});setTick(t=>t+1);}catch(e){setActionError(e instanceof Error?e.message:'중지 요청 실패');}}}>{status.runs[0]?.stop_requested?'중지 요청됨':'중지'}</button>}
       </div></div>
       <p className="live-note">분류 작업은 전체 기간의 미처리 질문을 자동으로 이어 처리합니다. 기간·조직 필터는 조회에 적용됩니다.</p>
+      {status?.model&&<p className="live-note">분류 모델: {status.model} · LiteLLM 직접 요청{status.separateModelUrl?' · 분류 전용 주소 사용':''}</p>}
       {status&&!status.configured&&<p className="live-warning">{status.configurationError} · 서버 .env 설정 후 재시작하세요.</p>}
-      {latest&&<p role="status" className="live-note">{latest.status==='running'?'진행 중':latest.status==='success'?'완료':latest.status==='partial'?'일부 미완료':['interrupted','cancelled'].includes(latest.status)?'중단됨':'실패'} · 처리 {number(latest.processed)} / {number(latest.total)}건 · 모델 호출 {number(latest.calls)}회 · 결과 재사용 {number(latest.reused)}건 {latest.unavailable>0?`· 원본 확인 필요 ${latest.unavailable}건`:''}</p>}
+      {latest&&<p role="status" className="live-note">{latest.status==='running'?'진행 중':latest.status==='success'?'완료':latest.status==='partial'?'일부 미완료':['interrupted','cancelled'].includes(latest.status)?'중단됨':'실패'} · 처리 {number(latest.processed)} / {number(latest.total)}건 · 모델 요청 {number(latest.calls)}배치 · 결과 재사용 {number(latest.reused)}건 {latest.unavailable>0?`· 원본 확인 필요 ${latest.unavailable}건`:''}</p>}
       {latest&&latest.total>0&&<progress className="category-progress" aria-label="전체 질문 분류 진행률" value={latest.processed+latest.unavailable} max={latest.total}/> }
       {(actionError||latest?.error)&&<p className="live-warning" role="alert">{actionError||latest?.error}</p>}
     </Panel>

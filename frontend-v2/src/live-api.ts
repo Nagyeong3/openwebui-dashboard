@@ -262,9 +262,10 @@ export function validateLeaderRanking(data: Payload) {
   }
 }
 
-export type Screen = "overview" | "users" | "tokens" | "categories";
+export type Screen = "overview" | "users" | "tokens" | "categories" | "operations";
 export function readScreen(search: string): Screen {
   const p = new URLSearchParams(search);
+  if (p.get("screen") === "operations") return "operations";
   if (p.get("screen") === "categories") return "categories";
   if (p.get("screen") === "tokens") return "tokens";
   if (p.get("screen") === "overview") return "overview";

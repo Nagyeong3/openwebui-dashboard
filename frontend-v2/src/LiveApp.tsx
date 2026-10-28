@@ -51,6 +51,7 @@ import {
 import Overview from "./Overview";
 import Tokens from "./Tokens";
 import Categories from "./Categories";
+import Operations from "./Operations";
 import PeriodPicker from "./PeriodPicker";
 
 const ALL = "전체";
@@ -58,7 +59,7 @@ const dateTime = (s: string | null) =>
   s
     ? new Date(s).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
     : "사용 기록 없음";
-const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const apiBase = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export default function LiveApp() {
   const [q, setQ] = useState<Query>(() =>
@@ -276,8 +277,8 @@ export default function LiveApp() {
           </nav>
           <div className="nav-label">OPERATIONS</div>
           <nav aria-label="운영 메뉴">
+            <button className={"nav-item " + (screen === "operations" ? "active" : "")} aria-current={screen === "operations" ? "page" : undefined} onClick={() => navigate("operations")}><RefreshCw size={18}/><span>운영 업데이트</span></button>
             {[
-              ["운영 업데이트", RefreshCw],
               ["시스템 상태", HeartPulse],
               ["로그/진단", ClipboardList],
             ].map(([name, Icon]) => {
@@ -335,6 +336,7 @@ export default function LiveApp() {
               <strong>
                 {screen === "overview"
                   ? "개요"
+                  : screen === "operations" ? "운영 업데이트"
                   : screen === "categories" ? "질문 카테고리 분류"
                   : screen === "tokens"
                     ? "토큰 사용량"
@@ -366,7 +368,8 @@ export default function LiveApp() {
                 <span className="eyebrow">
                   {screen === "overview"
                     ? "OVERVIEW"
-                    : screen === "categories" ? "QUESTION CATEGORIES"
+                    : screen === "operations" ? "OPERATIONS"
+                  : screen === "categories" ? "QUESTION CATEGORIES"
                     : screen === "tokens"
                       ? "TOKEN ANALYTICS"
                       : "PEOPLE ANALYTICS"}
@@ -374,7 +377,8 @@ export default function LiveApp() {
                 <h1>
                   {screen === "overview"
                     ? "OpenWebUI 사용 현황"
-                    : screen === "categories" ? "질문 카테고리 분류"
+                    : screen === "operations" ? "운영 업데이트"
+                  : screen === "categories" ? "질문 카테고리 분류"
                     : screen === "tokens"
                       ? "토큰 사용량"
                       : "사용자"}
@@ -382,14 +386,15 @@ export default function LiveApp() {
                 <p className="muted">
                   {screen === "overview"
                     ? "사용자·질문·토큰을 한눈에 보는 종합 현황"
-                    : screen === "categories" ? "질문 의도로 살펴보는 AI 활용 분야"
+                    : screen === "operations" ? "마지막 수집 이후 변경된 데이터를 반영합니다."
+                  : screen === "categories" ? "질문 의도로 살펴보는 AI 활용 분야"
                     : screen === "tokens"
                       ? "LiteLLM 로그로 확인하는 토큰 사용량과 비용"
                       : "사용 기록이 없는 사용자도 놓치지 않는 조직의 AI 활용 현황"}
                 </p>
               </div>
               <div className="live-heading-actions">
-                <PeriodPicker
+                {screen !== "operations" && <PeriodPicker
                   q={q}
                   period={
                     screen !== "users"
@@ -399,7 +404,7 @@ export default function LiveApp() {
                       : data?.period
                   }
                   onChange={patch}
-                />
+                />}
                 <button
                   className="button"
                   onClick={() => refresh((n) => n + 1)}
@@ -454,10 +459,10 @@ export default function LiveApp() {
                 )}
               </section>
             )}
-            <p className="live-note">
+            {screen !== "operations" && <p className="live-note">
               최근 기간과 이번달은 마지막 성공 수집일을 기준으로 계산합니다.
               날짜 경계는 한국 시간입니다.
-            </p>
+            </p>}
             {screen === "overview" && (
               <Overview
                 q={q}
@@ -468,6 +473,7 @@ export default function LiveApp() {
                 onPeriod={(period) => setOverviewPeriod({ key, period })}
               />
             )}
+            {screen === "operations" && <Operations token={token} revision={revision} onUpdated={()=>refresh(n=>n+1)}/>}
             {screen === "categories" && <Categories q={q} token={token} revision={revision} dark={dark} onChange={patch} onPeriod={(period)=>setOverviewPeriod({key,period})}/>}
             {screen === "tokens" && (
               <Tokens

@@ -19,12 +19,23 @@ def main():
     category = sub.add_parser("category-classify")
     category.add_argument("--kind", choices=("pending", "sample", "retry"), default="pending")
     sub.add_parser("category-status")
+    operation = sub.add_parser("operation-update")
+    operation.add_argument("--kind", choices=("quick", "full", "classify"), default="quick")
+    sub.add_parser("operation-status")
     sub.add_parser("token-status")
     sub.add_parser("status")
     sub.add_parser("init")
     args = parser.parse_args()
     try:
         settings = Settings.from_env()
+        if args.command in ("operation-update", "operation-status"):
+            from .operations import OperationsStore, prepare, execute, summary
+            cache = Cache(settings.cache_path)
+            db = OperationsStore(settings.operations_path)
+            result = (execute(settings,cache,db,prepare(settings,cache,db,args.kind))
+                      if args.command == "operation-update" else summary(settings,cache,db))
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 1 if args.command == "operation-update" and result["status"] != "success" else 0
         if args.command in ("category-classify", "category-status"):
             from .category_store import CategoryStore
             from .category_sync import prepare, collect
